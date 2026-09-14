@@ -1,0 +1,4 @@
+*.pro.user
+npcap-sdk-1.16/
+set_my_env.bat
+Qt_IDS_Interface/build/
