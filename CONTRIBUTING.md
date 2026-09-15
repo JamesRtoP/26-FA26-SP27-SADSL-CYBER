@@ -1,0 +1,1 @@
+Hello prospective contributors. We appretiate your enthusiasm, but this project is designed as a final project for CPTS 421 & 431 Software Design Project I & II. If you want to add to our project, simply fork the repository.
