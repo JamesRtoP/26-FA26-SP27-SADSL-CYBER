@@ -19,53 +19,26 @@ Expand Upon Development
 
 ## Homeserver Requirements
 
-### FR-01: REST API Endpoints
-**Description:** Homeservers shall provide a REST API with POST endpoints for a client's public keys and GET endpoints for retrieving a client's messages.  
-**Source:** Team technical decision  
-**Priority:** Level 0
-
-### FR-02: User Key Retrieval
-**Description:** Homeservers shall retrieve user public keys from other homeservers and provide them to requesting clients for initial key exchange.  
-**Source:** Team technical decision  
-**Priority:** Level 0
-
-### FR-03: New Key Generation
-**Description:** Homeservers shall retrieve new keys from a client application when the majority of that user's public keys have been used.  
-**Source:** Team technical decision  
-**Priority:** Level 1
+| ID | Requirement | Description | Source | Priority |
+|---|---|---|---|---|
+| FR-01 | REST API Endpoints | Homeservers shall provide a REST API with POST endpoints for a client's public keys and GET endpoints for retrieving a client's messages. | Team technical decision | Level 0 |
+| FR-02 | User Key Retrieval | Homeservers shall retrieve user public keys from other homeservers and provide them to requesting clients for initial key exchange. | Team technical decision | Level 0 |
+| FR-03 | New Key Generation | Homeservers shall retrieve new keys from a client application when the majority of that user's public keys have been used. | Team technical decision | Level 1 |
 
 ## Client Application Requirements
 
-### FR-04: Homeserver Selection
-**Description:** Client applications shall select their homeserver during user registration.  
-**Source:** Client Project Specification  
-**Priority:** Level 1
-
-### FR-05: Request User Keys
-**Description:** Client applications shall request keys for a specific client from their homeserver before sending them any events.  
-**Source:** Team technical decision  
-**Priority:** Level 1
-
-### FR-06: Event Generation
-**Description:** Client applications will generate events for starting a conversation, sending a message during a conversation, and deleting a message. These events are what will be sent to other clients.  
-**Source:** Team technical decision  
-**Priority:** Level 1
-
-### FR-07: End-to-End Encryption
-**Description:** Client applications shall encrypt all events before sending them to the homeserver and decrypt all their own messages from their homeserver.  
-**Source:** Client Project Specification  
-**Priority:** Level 1
+| ID | Requirement | Description | Source | Priority |
+|---|---|---|---|---|
+| FR-04 | Homeserver Selection | Client applications shall select their homeserver during user registration. | Client Project Specification | Level 1 |
+| FR-05 | Request User Keys | Client applications shall request keys for a specific client from their homeserver before sending them any events. | Team technical decision | Level 1 |
+| FR-06 | Event Generation | Client applications will generate events for starting a conversation, sending a message during a conversation, and deleting a message. These events are what will be sent to other clients. | Team technical decision | Level 1 |
+| FR-07 | End-to-End Encryption | Client applications shall encrypt all events before sending them to the homeserver and decrypt all their own messages from their homeserver. | Client Project Specification | Level 1 |
 
 ## Cryptography Requirements
 
-### FR-08: Initial Key Exchange
-**Description:** Initial key exchange between clients will utilize Post-Quantum Extended Diffie-Hellman (PQXDH).  
-**Source:** Team technical decision  
-**Priority:** Level 0
-
-### FR-09: Message Encryption
-**Description:** Per-message encryption will utilize Sparse Post-Quantum Ratchet (SPQR).  
-**Source:** Team technical decision
-**Priority:** Level 0
+| ID | Requirement | Description | Source | Priority |
+|---|---|---|---|---|
+| FR-08 | Initial Key Exchange | Initial key exchange between clients will utilize Post-Quantum Extended Diffie-Hellman (PQXDH). | Team technical decision | Level 0 |
+| FR-09 | Message Encryption | Per-message encryption will utilize Sparse Post-Quantum Ratchet (SPQR). | Team technical decision | Level 0 |
 ## Additional Documentation
 Reports: https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports
