@@ -68,5 +68,4 @@ Expand Upon Development
 **Source:** Team technical decision
 **Priority:** Level 0
 ## Additional Documentation
-TODO: Provide links to additional documentation that may exist in the repo, e.g.,
-Document Reports: https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports
+Reports: https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports
