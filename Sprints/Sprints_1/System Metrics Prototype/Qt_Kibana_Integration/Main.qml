@@ -39,7 +39,7 @@ ApplicationWindow {
                 spacing: 0
 
                 Label {
-                    text: "PQ3 Chat"
+                    text: "Q3-Chat"
                     color: "#f2f3f5"
 
                     font.family: "Segoe UI"
