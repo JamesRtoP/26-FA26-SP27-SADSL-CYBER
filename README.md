@@ -16,10 +16,7 @@ instructions below (e.g., git, which versions of Ruby/Rails)
 TODO: Describe the installation process (making sure you mention `bundle install`).
 Instructions need to be such that a user can just copy/paste the commands to get
 things set up and running.
-## Functionality
-TODO: Write usage instructions. Structuring it as a walkthrough can help structure
-this section,
-and showcase your features.
+
 # Requirements
 
 ## Homeserver Requirements
