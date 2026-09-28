@@ -1,0 +1,33 @@
+Minutes of Meeting (MoM)
+Project Title: Post Quantum E2EE Chat
+Team Number: 26
+Client / Sponsor: James Halvorsen
+Mentor(s): Parteek Kumar
+Date: 8/28/2026
+Time: 11:00
+Location / Platform (Zoom/Office/etc.): Discord
+Participants (Team & Client): James Halverson, James Richards-Perhatch, Aiden Vezzetti, Mitchell Milander
+
+
+
+Meeting Number / Version: 3
+1. Agenda
+•	Item 1: Post Quantum protocols 
+•	Item 2: Implementation specifics for server and client applications
+•	Item 3: Devision of labor
+•	Item 4: Homeserver REST API, store keys,
+
+2. Key Discussion Points
+•	Use signal standards
+•	USe signal crytographic protocols
+3. Decisions Made
+•	Start server implementation
+5. Client Feedback / Clarifications
+•	FINISH REQUIERMENT DOCUMENT
+6. Next Steps & Follow-Up
+•	Deliverables before next meeting: Basic QT quick server
+•	Next meeting scheduled on: 10/5/2026
+•	Agreed communication channel: Discord
+Prepared By: James Richards-Perhatch
+Date of Circulation: 9-28-2026
+
