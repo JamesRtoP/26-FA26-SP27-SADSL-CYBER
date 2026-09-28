@@ -10,12 +10,10 @@ The chat application requires a server for hosting. This server will be responsi
 The client-side application will be responsible for all message decryptions. It will be the sole storage location for the encryption keys. To ensure security, device management and device switching will be handled entirely by the client. 
 ## Installation
 ### Prerequisites
-TODO: List what a user needs to have installed before running the installation
-instructions below (e.g., git, which versions of Ruby/Rails)
+QT
+libsignal
 ### Installation Steps
-TODO: Describe the installation process (making sure you mention `bundle install`).
-Instructions need to be such that a user can just copy/paste the commands to get
-things set up and running.
+Expand Upon Development
 
 # Requirements
 
@@ -69,11 +67,6 @@ things set up and running.
 **Description:** Per-message encryption will utilize Sparse Post-Quantum Ratchet (SPQR).  
 **Source:** Team technical decision
 **Priority:** Level 0
-## Known Problems
-TODO: Describe any known issues, bugs, odd behaviors or code smells.
-Provide steps to reproduce the problem and/or name a file or a function where the
-problem lives.
 ## Additional Documentation
 TODO: Provide links to additional documentation that may exist in the repo, e.g.,
-* Sprint reports
-* User links
+Document Reports: https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports
