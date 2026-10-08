@@ -1,0 +1,5 @@
+# Local Elastic Agent install
+elastic-agent-9.5.4-windows-x86_64/
+
+# Local environment file
+.env
