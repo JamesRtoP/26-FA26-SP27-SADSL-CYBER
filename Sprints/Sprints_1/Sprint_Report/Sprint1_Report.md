@@ -19,7 +19,7 @@ Here are links to the issues that we completed in this sprint:
  * [Background Research for Matrix](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/3)
  * [Background Research for Quantum Protocols](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/7)
  * [Background Research on Qt Quick](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/8)
- * [Implement GET Health REST Endpoint](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/8)
+ * [Implement GET Health REST Endpoint](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/5)
  * [Implement Event Posting and Getting](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/6)
  * [Create Sample Elastic/Kibana Dashboard](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/9)
  
