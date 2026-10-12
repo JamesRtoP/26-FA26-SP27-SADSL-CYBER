@@ -43,5 +43,5 @@ Here's what we'd like to improve:
   
 Here are changes we plan to implement in the next sprint:
    * Team will ask for more feedback from client.
-   * Team will use Kanban more effectivly.
-   * Team will create issues with more time in advance.
+   * Team will use Kanban more effectively.
+   * Team will create issues sooner than later.
