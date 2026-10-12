@@ -10,12 +10,11 @@ The chat application requires a server for hosting. This server will be responsi
 The client-side application will be responsible for all message decryptions. It will be the sole storage location for the encryption keys. To ensure security, device management and device switching will be handled entirely by the client. 
 ## Installation
 ### Prerequisites
-QT,
+Qt Creator,
 libsignal
 ### Installation Steps
 - Clone GitHub Repository
-- Download Qt Creator
-- Open *CMakeLists.txt* from /Code/homeserver in Qt Creator to run the home server
+- Open *CMakeLists.txt* from */Code/homeserver* in Qt Creator to run the home server
 
 # Requirements
 
