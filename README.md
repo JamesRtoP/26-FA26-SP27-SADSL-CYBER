@@ -13,7 +13,9 @@ The client-side application will be responsible for all message decryptions. It 
 QT,
 libsignal
 ### Installation Steps
-Expand Upon Development
+- Clone GitHub Repository
+- Download Qt Creator
+- Open *CMakeLists.txt* from /Code/homeserver in Qt Creator to run the home server
 
 # Requirements
 
@@ -41,4 +43,7 @@ Expand Upon Development
 | FR-08 | Initial Key Exchange | Initial key exchange between clients will utilize Post-Quantum Extended Diffie-Hellman (PQXDH). | Team technical decision | Level 0 |
 | FR-09 | Message Encryption | Per-message encryption will utilize Sparse Post-Quantum Ratchet (SPQR). | Team technical decision | Level 0 |
 ## Additional Documentation
-Reports: https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports
+- [Class Reports](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports)
+- [Sprint_1 Report](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/blob/main/Sprints/Sprints_1/Sprint_Report/Sprint1_Report.md)
+## License
+- [GNU General Public License](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/blob/main/LICENSE)
