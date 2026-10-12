@@ -11,7 +11,7 @@
 We had four main objectives for our first sprint that we worked diligently to meet. Firstly, we gathered documentation from our client, James Halverson, and met every every week to accomplish this task. Secondly, we created a project description and specification documentation. Thirdly, we identified the language, libraries, and stack we wanted to use for our project. Fourthly we prepared a simple home server to demonstrate what we learned. The main barrier that we overcame was understanding the client-server architecture model.
 
 ## Unfinished Work
-Non applicable.
+N/A
 
 ## Completed Issues/User Stories
 Here are links to the issues that we completed in this sprint:
@@ -24,7 +24,7 @@ Here are links to the issues that we completed in this sprint:
  * [Create Sample Elastic/Kibana Dashboard](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/9)
  
  ## Incomplete Issues/User Stories
-Non applicable.
+N/A
 
 ## Code Files for Review
 Please review the following code files, which were actively developed during this sprint, for quality:
