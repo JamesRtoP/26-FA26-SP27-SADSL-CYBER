@@ -1,6 +1,6 @@
 # Sprint 1 Report (8/24/26 - 10/11/26)
 
-## YouTube link of Sprint * Video (Make this video unlisted)
+## YouTube [link](https://www.youtube.com/watch?v=RNDKy8bVzPg) of Sprint 1 Video
 
 ## What's New (User Facing)
  * Event Posting and Getting
@@ -22,24 +22,15 @@ Here are links to the issues that we completed in this sprint:
  * [Implement GET Health REST Endpoint](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/8)
  * [Implement Event Posting and Getting](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/6)
  * [Create Sample Elastic/Kibana Dashboard](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/issues/9)
-
- Reminders (Remove this section when you save the file):
-  * Each issue should be assigned to a milestone
-  * Each completed issue should be assigned to a pull request
-  * Each completed pull request should include a link to a "Before and After" video
-  * All team members who contributed to the issue should be assigned to it on GitHub
-  * Each issue should be assigned story points using a label
-  * Story points contribution of each team member should be indicated in a comment
  
  ## Incomplete Issues/User Stories
 Non applicable.
 
 ## Code Files for Review
 Please review the following code files, which were actively developed during this sprint, for quality:
- * [Name of code file 1](https://github.com/your_repo/file_extension)
- * [Name of code file 2](https://github.com/your_repo/file_extension)
- * [Name of code file 3](https://github.com/your_repo/file_extension)
- 
+ * [Home Server](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/main/Code/homeserver)
+ * [System Metrics Prototype](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Sprints/Sprints_1/System%20Metrics%20Prototype)
+   
 ## Retrospective Summary
 Here's what went well:
   * Team had wonderful communication.
