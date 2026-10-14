@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
             qWarning() << "Failed to store event:" << events.lastError();
             return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
         }
-        return QHttpServerResponse("Event Posted", QHttpServerResponse::StatusCode::Created);
+        return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
     if(!server.bind(&tcpServer)){ // connect the TCP listener to the HTTP server
