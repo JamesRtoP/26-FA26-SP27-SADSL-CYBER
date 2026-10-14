@@ -14,7 +14,7 @@ Qt Creator,
 libsignal
 ### Installation Steps
 - Clone GitHub Repository
-- Open *CMakeLists.txt* from */Code/homeserver* in Qt Creator to run the home server
+- Open CMakeLists.txt from /Code/homeserver in Qt Creator to run the home server
 ### Homeserver Database Setup
 The homeserver stores events in PostgreSQL using Qt SQL's QPSQL driver.
 - Create the database user and database (run as the `postgres` superuser):
@@ -23,9 +23,8 @@ The homeserver stores events in PostgreSQL using Qt SQL's QPSQL driver.
   CREATE DATABASE homeserver OWNER homeserver;
   ```
   The homeserver creates its `events` table on startup.
-- In Qt Creator, open *Projects → Run → Environment* and add:
+- In Qt Creator, open Projects / Project Settings / Project Environment and add:
   - `HOMESERVER_DB_PASSWORD` = the password chosen above
-  - Optional overrides: `HOMESERVER_DB_HOST` (default `localhost`), `HOMESERVER_DB_PORT` (`5432`), `HOMESERVER_DB_NAME` (`homeserver`), `HOMESERVER_DB_USER` (`homeserver`)
 - **macOS only:** Qt's QPSQL driver needs an arm64 `libpq`. The one bundled with the EnterpriseDB PostgreSQL installer is x86_64 only, so install one with `brew install libpq` and also add this to the Run environment:
   - `DYLD_FALLBACK_LIBRARY_PATH` = `/opt/homebrew/opt/libpq/lib`
 
