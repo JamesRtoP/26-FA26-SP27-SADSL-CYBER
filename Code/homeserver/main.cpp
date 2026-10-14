@@ -10,6 +10,8 @@
 #include <QDebug>
 #include <QJsonObject>
 
+#include "eventstore.h"
+
 QString healthCheck(){
     return "OK";
 }
@@ -19,7 +21,13 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
-    QList<QJsonObject> events;
+    EventStore events; // events are stored in PostgreSQL
+
+    if(!events.open())
+    {
+        qCritical() << "Failed to connect to the database:" << events.lastError();
+        return -1;
+    }
 
     bool listening = tcpServer.listen(QHostAddress:: Any, 8080); // listen on any interface
     if (!listening){
@@ -34,13 +42,14 @@ int main(int argc, char *argv[])
 
     server.route("/events/", QHttpServerRequest::Method::Get, [&events](int id)
     {
-        if(id < 1 || events.size() < id)
+        std::optional<QJsonObject> event = events.event(id);
+        if(!event)
         {
             return QHttpServerResponse("Event not found", QHttpServerResponse::StatusCode::NotFound);
         }
         else
         {
-            return QHttpServerResponse(events[id-1], QHttpServerResponse::StatusCode::Ok);
+            return QHttpServerResponse(*event, QHttpServerResponse::StatusCode::Ok);
         }
     });
 
@@ -51,8 +60,12 @@ int main(int argc, char *argv[])
         {
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
-        QJsonObject newEvent = doc.object();
-        events.push_back(newEvent);
+        std::optional<qint64> id = events.addEvent(doc.object());
+        if(!id)
+        {
+            qWarning() << "Failed to store event:" << events.lastError();
+            return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
+        }
         return QHttpServerResponse("Event Posted", QHttpServerResponse::StatusCode::Created);
     });
 
