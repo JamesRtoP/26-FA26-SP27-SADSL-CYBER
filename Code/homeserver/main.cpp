@@ -56,6 +56,29 @@ int main(int argc, char *argv[])
         return QHttpServerResponse("Event Posted", QHttpServerResponse::StatusCode::Created);
     });
 
+    // temporary test route for registration
+    server.route("/register",
+                QHttpServerRequest::Method::Post,
+                [](const QHttpServerRequest &request)
+    {
+        return QHttpServerResponse(
+                        QByteArray("Registration received: ") + request.body(),
+                        QHttpServerResponse::StatusCode::Created
+        );
+    });
+
+    // temporary test route for login
+    server.route("/login",
+                QHttpServerRequest::Method::Post,
+                [](const QHttpServerRequest &request)
+    {
+                    return QHttpServerResponse(
+                        ("Login received: ") + request.body(),
+                        QHttpServerResponse::StatusCode::Ok
+                    );
+    });
+
+
     if(!server.bind(&tcpServer)){ // connect the TCP listener to the HTTP server
         qDebug() << "Failed to bind HTTP server";
     }
