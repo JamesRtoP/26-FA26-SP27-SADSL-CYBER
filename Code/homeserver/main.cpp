@@ -91,7 +91,6 @@ int main(int argc, char *argv[])
         std::vector<unsigned char> hashVector = PasswordHasher::scryptHash(password, saltVector);
         QByteArray salt((const char*)saltVector.data(), saltVector.size());
         QByteArray passwordHash((const char*)hashVector.data(), hashVector.size());
-        //userList.push_back(DemoUser{username,hash,salt});
         std::optional<qint64> userId = database.createUser(username, passwordHash, salt);
 
         if (!userId)
@@ -103,24 +102,40 @@ int main(int argc, char *argv[])
         return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
     });
 
-    // temporary test route for login
-    server.route("/login", QHttpServerRequest::Method::Post, [&userList](const QHttpServerRequest &request)
+    server.route("/login", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
         QString username = obj["username"].toString();
         QString password = obj["password"].toString();
 
-        for(int i = 0; i < userList.size(); i++)
+        std::optional<StoredUser> storedUser = database.user(username);
+        if (!storedUser)
         {
-            if (userList[i].username == username && userList[i].passwordHash == PasswordHasher::scryptHash(password,userList[i].salt))
-            {
-                QJsonObject response;
-                response["authToken"] = "abc";
-                return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
-            }
+            return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
         }
-        return QHttpServerResponse(("Incorrect Username or Password"), QHttpServerResponse::StatusCode::BadRequest);
+
+        std::vector<unsigned char> saltVec(storedUser->salt.begin(), storedUser->salt.end());
+        std::vector<unsigned char> computedHashVec = PasswordHasher::scryptHash(password, saltVec);
+        QByteArray computedHash((const char*)computedHashVec.data(), computedHashVec.size());
+
+        if (computedHash != storedUser->passwordHash)
+        {
+            return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
+        }
+
+        QString authToken = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        QDateTime expiresAt = QDateTime::currentDateTimeUtc().addDays(1);
+
+        if (!database.storeSession(storedUser->id, authToken, expiresAt))
+        {
+            qWarning() << "Failed to store session:" << database.lastError();
+            return QHttpServerResponse("Internal Server Error", QHttpServerResponse::StatusCode::InternalServerError);
+        }
+        QJsonObject response;
+        // Send back the raw token to the client (client sends this back as a Bearer token in future requests)
+        response["authToken"] = authToken;
+        return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
     });
 
 

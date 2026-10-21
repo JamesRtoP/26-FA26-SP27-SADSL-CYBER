@@ -111,7 +111,7 @@ public:
      * @return true on insertion; false on validation, constraint, or SQL failure.
      * @note Token generation and hashing belong to the caller. Multiple sessions per user are supported.
      */
-    bool storeSession(qint64 userId, const QByteArray &tokenHash,
+    bool storeSession(qint64 userId, const QString &tokenHash,
                       const QDateTime &expiresAt);
     /**
      * @brief Resolve a token digest to the user of an active session.

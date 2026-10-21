@@ -130,7 +130,7 @@ bool Database::migrate()
             // User deletion also removes sessions; token uniqueness prevents ambiguity.
             "CREATE TABLE user_sessions (id BIGSERIAL PRIMARY KEY, "
                 "user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE, "
-                "token_hash BYTEA NOT NULL UNIQUE CHECK (octet_length(token_hash) = 32), "
+                "token TEXT NOT NULL UNIQUE CHECK (length(token) = 36), "
                 "created_at TIMESTAMPTZ NOT NULL DEFAULT now(), "
                 "expires_at TIMESTAMPTZ NOT NULL CHECK (expires_at > created_at), revoked_at TIMESTAMPTZ)",
             "CREATE INDEX user_sessions_user_id_idx ON user_sessions(user_id)",
@@ -271,22 +271,22 @@ std::optional<StoredUser> Database::user(const QString &username)
  * @brief Store an independently expiring authentication session.
  *
  * @param userId ID of an existing user.
- * @param tokenHash Binary 32-byte SHA-256 digest of a high-entropy bearer token, not raw or hexadecimal text.
+ * @param token Binary 32-byte SHA-256 digest of a high-entropy bearer token, not raw or hexadecimal text.
  * @param expiresAt Valid future expiration instant, normalized to UTC when stored.
  * @return true on insertion; false on validation, constraint, or SQL failure.
  * @note Token generation and hashing belong to the caller. Multiple sessions per user are supported.
  */
-bool Database::storeSession(qint64 userId, const QByteArray &tokenHash, const QDateTime &expiresAt)
+bool Database::storeSession(qint64 userId, const QString &token, const QDateTime &expiresAt)
 {
     m_lastError.clear();
-    if (tokenHash.size() != 32 || !expiresAt.isValid() || expiresAt <= QDateTime::currentDateTimeUtc()) {
-        m_lastError = "A session requires a 32-byte token digest and a future expiration";
+    if (token.size() != 36 || !expiresAt.isValid() || expiresAt <= QDateTime::currentDateTimeUtc()) {
+        m_lastError = "A session requires a 36-byte token digest and a future expiration";
         return false;
     }
     QSqlQuery query(QSqlDatabase::database(m_connectionName));
-    query.prepare("INSERT INTO user_sessions(user_id, token_hash, expires_at) VALUES (?, ?, ?)");
+    query.prepare("INSERT INTO user_sessions(user_id, token, expires_at) VALUES (?, ?, ?)");
     query.addBindValue(userId);
-    query.addBindValue(tokenHash);
+    query.addBindValue(token);
     // Normalize the supplied instant; TIMESTAMPTZ preserves timezone-independent expiry.
     query.addBindValue(expiresAt.toUTC());
     if (!query.exec()) { m_lastError = query.lastError().text(); return false; }
@@ -296,18 +296,18 @@ bool Database::storeSession(qint64 userId, const QByteArray &tokenHash, const QD
 /**
  * @brief Resolve a token digest to the user of an active session.
  *
- * @param tokenHash Binary SHA-256 digest of the presented bearer token.
+ * @param token Binary SHA-256 digest of the presented bearer token.
  * @return The user ID, or std::nullopt for an unknown, expired, revoked, or failed lookup.
  * @note Uses the database clock for expiry. Inactive or missing sessions leave lastError() empty.
  */
-std::optional<qint64> Database::sessionUser(const QByteArray &tokenHash)
+std::optional<qint64> Database::sessionUser(const QByteArray &token)
 {
     m_lastError.clear();
     QSqlQuery query(QSqlDatabase::database(m_connectionName));
     // Enforce expiry in SQL using the database clock, even if cleanup has not run.
-    query.prepare("SELECT user_id FROM user_sessions WHERE token_hash = ? "
+    query.prepare("SELECT user_id FROM user_sessions WHERE token = ? "
                   "AND revoked_at IS NULL AND expires_at > now()");
-    query.addBindValue(tokenHash);
+    query.addBindValue(token);
     if (!query.exec()) { m_lastError = query.lastError().text(); return std::nullopt; }
     if (!query.next()) return std::nullopt;
     return query.value(0).toLongLong();
@@ -316,17 +316,17 @@ std::optional<qint64> Database::sessionUser(const QByteArray &tokenHash)
 /**
  * @brief Idempotently revoke one authentication session.
  *
- * @param tokenHash Binary SHA-256 digest identifying the session.
+ * @param token Binary SHA-256 digest identifying the session.
  * @return true even if already revoked or unknown; false on SQL failure.
  * @note Preserves the first revocation timestamp and leaves other sessions active.
  */
-bool Database::revokeSession(const QByteArray &tokenHash)
+bool Database::revokeSession(const QByteArray &token)
 {
     m_lastError.clear();
     QSqlQuery query(QSqlDatabase::database(m_connectionName));
     // Preserve the first revocation timestamp when logout is requested repeatedly.
-    query.prepare("UPDATE user_sessions SET revoked_at = COALESCE(revoked_at, now()) WHERE token_hash = ?");
-    query.addBindValue(tokenHash);
+    query.prepare("UPDATE user_sessions SET revoked_at = COALESCE(revoked_at, now()) WHERE token = ?");
+    query.addBindValue(token);
     if (!query.exec()) { m_lastError = query.lastError().text(); return false; }
     return true; // Revocation is idempotent, including an unknown token.
 }
