@@ -21,23 +21,7 @@ The HTTP portion exercises the application's event-storage path. The SQL portion
 
 Commands below use the PostgreSQL 18 macOS installation path. Substitute your installed `psql` path if different. Enter passwords at prompts or securely in Qt Creator; do not put them in recorded commands.
 
-## 1. Select the branch
-
-From Terminal:
-
-```bash
-cd /Users/aidenvezzetti/School/Fall2026/CS421/26-FA26-SP27-SADSL-CYBER
-git status --short
-git switch feat/qt-sql-server-connection
-git branch --show-current
-git rev-parse HEAD
-```
-
-**Expected:** the selected branch is `feat/qt-sql-server-connection`. Record the commit SHA with the test results. Preserve any existing local changes; do not force checkout or reset the repository.
-
-The repository directory is `Code/homeserver` with an uppercase `C`.
-
-## 2. Create a dedicated demo database
+## 1. Create a dedicated demo database
 
 Connect as the PostgreSQL administrator:
 
@@ -54,7 +38,7 @@ CREATE DATABASE homeserver_demo_test OWNER homeserver;
 
 **Expected:** `CREATE DATABASE` succeeds. This assumes the `homeserver` role already exists. If the demo database already exists, inspect and reuse it if appropriate; do not delete existing data just to repeat the demonstration.
 
-## 3. Configure and start the homeserver
+## 2. Configure and start the homeserver
 
 1. Open `Code/homeserver/CMakeLists.txt` in Qt Creator.
 2. Select the working Qt kit and use a build directory outside the source directory.
@@ -75,7 +59,7 @@ CREATE DATABASE homeserver_demo_test OWNER homeserver;
 
 **Presentation:** “The homeserver connects to PostgreSQL and initializes its schema automatically.”
 
-## 4. Verify the HTTP service
+## 3. Verify the HTTP service
 
 In a second Terminal window:
 
@@ -85,7 +69,7 @@ curl -i --max-time 10 http://127.0.0.1:8080/health
 
 **Expected:** HTTP `200` with body `OK`.
 
-## 5. Prove that an event survives a restart
+## 4. Prove that an event survives a restart
 
 Create an identifiable event:
 
