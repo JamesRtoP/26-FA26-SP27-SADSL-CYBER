@@ -95,7 +95,9 @@ int main(int argc, char *argv[])
         {
             if (userList[i].username == username && userList[i].passwordHash == PasswordHasher::scryptHash(password,userList[i].salt))
             {
-                return QHttpServerResponse("Successfully Logged-In", QHttpServerResponse::StatusCode::Ok);
+                QJsonObject response;
+                response["authToken"] = "abc";
+                return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
             }
         }
         return QHttpServerResponse(("Incorrect Username or Password"), QHttpServerResponse::StatusCode::BadRequest);
