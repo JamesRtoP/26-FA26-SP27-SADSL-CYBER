@@ -1,9 +1,5 @@
 # PostgreSQL Database Demo — Tester Guide
 
-**Branch:** `feat/qt-sql-server-connection`  
-**Duration:** approximately 7–10 minutes  
-**Companion file:** [database-client-demo.sql](database-client-demo.sql)
-
 ## 1. Create a dedicated demo database
 
 Connect as the PostgreSQL administrator:
