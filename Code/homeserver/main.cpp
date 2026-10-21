@@ -10,6 +10,7 @@
 #include <QDebug>
 #include <QJsonObject>
 
+#include "database.h"
 #include "passwordhasher.h"
 #include "demoUser.h"
 
@@ -22,7 +23,13 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
-    QList<QJsonObject> events;
+    Database events; // events are stored in PostgreSQL
+
+    if(!events.open())
+    {
+        qCritical() << "Failed to connect to the database:" << events.lastError();
+        return -1;
+    }
 
     std::vector<DemoUser> userList;
 
@@ -39,13 +46,14 @@ int main(int argc, char *argv[])
 
     server.route("/events/", QHttpServerRequest::Method::Get, [&events](int id)
     {
-        if(id < 1 || events.size() < id)
+        std::optional<QJsonObject> event = events.event(id);
+        if(!event)
         {
             return QHttpServerResponse("Event not found", QHttpServerResponse::StatusCode::NotFound);
         }
         else
         {
-            return QHttpServerResponse(events[id-1], QHttpServerResponse::StatusCode::Ok);
+            return QHttpServerResponse(*event, QHttpServerResponse::StatusCode::Ok);
         }
     });
 
@@ -56,9 +64,13 @@ int main(int argc, char *argv[])
         {
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
-        QJsonObject newEvent = doc.object();
-        events.push_back(newEvent);
-        return QHttpServerResponse("Event Posted", QHttpServerResponse::StatusCode::Created);
+        std::optional<qint64> id = events.addEvent(doc.object());
+        if(!id)
+        {
+            qWarning() << "Failed to store event:" << events.lastError();
+            return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
+        }
+        return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
     // temporary test route for registration
