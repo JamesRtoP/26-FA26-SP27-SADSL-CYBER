@@ -4,23 +4,6 @@
 **Duration:** approximately 7–10 minutes  
 **Companion file:** [database-client-demo.sql](database-client-demo.sql)
 
-## Purpose
-
-Demonstrate that the homeserver persists events in PostgreSQL and that the database schema supports account records, user inboxes, session expiry/revocation, uniqueness constraints, and transactional rollback.
-
-The HTTP portion exercises the application's event-storage path. The SQL portion exercises PostgreSQL directly; it does not test the C++ account/session/inbox methods or authenticated HTTP access. Message encryption, registration/login endpoints, and `/user/events` are outside this branch's demo.
-
-## Prerequisites
-
-- A local checkout with the database branch available.
-- Qt Creator and a compatible Qt kit (CMake requires Qt 6.10 or later), including Quick, HttpServer, Sql, and the QPSQL driver.
-- PostgreSQL running locally; an existing `homeserver` login role and its password.
-- A working PostgreSQL client (`psql`) and `curl`.
-- On Apple Silicon, a compatible arm64 `libpq` accessible to the QPSQL driver. The branch documentation uses Homebrew's `/opt/homebrew/opt/libpq/lib`.
-- Save this guide and `database-client-demo.sql` in the same local folder.
-
-Commands below use the PostgreSQL 18 macOS installation path. Substitute your installed `psql` path if different. Enter passwords at prompts or securely in Qt Creator; do not put them in recorded commands.
-
 ## 1. Create a dedicated demo database
 
 Connect as the PostgreSQL administrator:
