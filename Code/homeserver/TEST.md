@@ -1,6 +1,22 @@
 # PostgreSQL Database Demo — Tester Guide
 
-## 1. Create a dedicated demo database
+## 1. Select the branch
+
+From Terminal:
+
+```bash
+cd /Users/aidenvezzetti/School/Fall2026/CS421/26-FA26-SP27-SADSL-CYBER
+git status --short
+git switch feat/qt-sql-server-connection
+git branch --show-current
+git rev-parse HEAD
+```
+
+**Expected:** the selected branch is `feat/qt-sql-server-connection`. Record the commit SHA with the test results. Preserve any existing local changes; do not force checkout or reset the repository.
+
+The repository directory is `Code/homeserver` with an uppercase `C`.
+
+## 2. Create a dedicated demo database
 
 Connect as the PostgreSQL administrator:
 
@@ -17,7 +33,7 @@ CREATE DATABASE homeserver_demo_test OWNER homeserver;
 
 **Expected:** `CREATE DATABASE` succeeds. This assumes the `homeserver` role already exists. If the demo database already exists, inspect and reuse it if appropriate; do not delete existing data just to repeat the demonstration.
 
-## 2. Configure and start the homeserver
+## 3. Configure and start the homeserver
 
 1. Open `Code/homeserver/CMakeLists.txt` in Qt Creator.
 2. Select the working Qt kit and use a build directory outside the source directory.
@@ -38,7 +54,7 @@ CREATE DATABASE homeserver_demo_test OWNER homeserver;
 
 **Presentation:** “The homeserver connects to PostgreSQL and initializes its schema automatically.”
 
-## 3. Verify the HTTP service
+## 4. Verify the HTTP service
 
 In a second Terminal window:
 
@@ -48,7 +64,7 @@ curl -i --max-time 10 http://127.0.0.1:8080/health
 
 **Expected:** HTTP `200` with body `OK`.
 
-## 4. Prove that an event survives a restart
+## 5. Prove that an event survives a restart
 
 Create an identifiable event:
 
@@ -57,8 +73,39 @@ curl -i --max-time 10 \
   -H 'Content-Type: application/json' \
   -d '{"demo":"client-persistence","payload":"sample event"}' \
   http://127.0.0.1:8080/events
-  ```
-  
+```
+
+**Expected:** HTTP `201` with a JSON response containing the generated event ID, for example `{"id":42}`. Record the actual ID; do not assume it is `42` or starts at `1`.
+
+Retrieve it, replacing `42` with that ID:
+
+```bash
+curl -i --max-time 10 http://127.0.0.1:8080/events/42
+```
+
+**Expected:** HTTP `200` containing the submitted JSON fields. JSON field order and whitespace may differ.
+
+1. Stop the homeserver in Qt Creator.
+2. Run the health request again. It should fail to connect once the process has stopped. If it still responds, identify the other process before continuing.
+3. Restart the homeserver with the same database configuration.
+4. Repeat the health request and GET request for the recorded event ID.
+
+**Expected:** health returns `200 / OK`, and the event still returns `200` with the same submitted fields.
+
+**Pass criterion:** an event submitted through the application remains retrievable after the application process restarts.
+
+**Presentation:** “The event survives a server restart because it is stored in PostgreSQL rather than a temporary in-memory list.”
+
+The sample event is plaintext test data. This does not demonstrate encryption or private event access.
+
+## 6. Inspect the schema and persisted event
+
+Connect as the application's database role:
+
+```bash
+/Library/PostgreSQL/18/bin/psql -h localhost -U homeserver -d homeserver_demo_test -W
+```
+
 Run:
 
 ```sql
