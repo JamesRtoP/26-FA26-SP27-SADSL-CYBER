@@ -10,8 +10,8 @@
 
 // Internal authentication record. Never include these credentials in an API response.
 struct StoredUser {
-    qint64 id; // Stable identity used by sessions and inbox memberships.
-    QString username; // Original spelling; lookup and uniqueness are case-insensitive.
+    qint64 id;
+    QString username;
     QByteArray passwordHash; // Binary output from the caller's password KDF.
     QByteArray salt; // Per-user salt supplied by the caller.
     QString passwordAlgorithm; // Identifies the KDF needed to verify this hash.
@@ -21,7 +21,7 @@ struct StoredUser {
 // An inbox result contains only event data, with no credentials or session metadata.
 struct StoredEvent {
     qint64 id;
-    QJsonObject body; // Opaque client payload; this layer does not decrypt events.
+    QJsonObject body;
 };
 
 // PostgreSQL persistence for users, sessions, and event inboxes; no HTTP logic.
