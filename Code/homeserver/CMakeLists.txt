@@ -3,8 +3,11 @@ cmake_minimum_required(VERSION 3.16)
 project(homeserver VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 
 find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql)
+find_package(OpenSSL REQUIRED)
+find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
@@ -12,6 +15,7 @@ qt_standard_project_setup(REQUIRES 6.10)
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/importedcontent)
 endif()
+
 
 qt_add_executable(apphomeserver
     main.cpp
@@ -24,6 +28,8 @@ qt_add_qml_module(apphomeserver
     QML_FILES
         Main.qml
         RESOURCES TEST.md
+        SOURCES passwordhasher.h passwordhasher.cpp
+        SOURCES demoUser.h
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -41,6 +47,7 @@ target_link_libraries(apphomeserver
     PRIVATE Qt6::Quick
     PRIVATE Qt6::HttpServer
     PRIVATE Qt6::Sql
+    PRIVATE OpenSSL::Crypto
 )
 
 install(TARGETS apphomeserver

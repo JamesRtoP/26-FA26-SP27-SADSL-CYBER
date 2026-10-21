@@ -11,6 +11,8 @@
 #include <QJsonObject>
 
 #include "database.h"
+#include "passwordhasher.h"
+#include "demoUser.h"
 
 QString healthCheck(){
     return "OK";
@@ -28,6 +30,8 @@ int main(int argc, char *argv[])
         qCritical() << "Failed to connect to the database:" << events.lastError();
         return -1;
     }
+
+    std::vector<DemoUser> userList;
 
     bool listening = tcpServer.listen(QHostAddress:: Any, 8080); // listen on any interface
     if (!listening){
@@ -68,6 +72,49 @@ int main(int argc, char *argv[])
         }
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
+
+    // temporary test route for registration
+    server.route("/register", QHttpServerRequest::Method::Post, [&userList](const QHttpServerRequest &request)
+    {
+        QJsonDocument doc = QJsonDocument::fromJson(request.body());
+        QJsonObject obj = doc.object();
+        QString username = obj["username"].toString();
+
+        for(int i = 0; i < userList.size(); i++)
+        {
+            if (userList[i].username == username)
+            {
+                return QHttpServerResponse("Username Taken", QHttpServerResponse::StatusCode::BadRequest);
+            }
+        }
+
+        QString password = obj["password"].toString();
+        std::vector<unsigned char> salt = PasswordHasher::salt();
+        std::vector<unsigned char> hash = PasswordHasher::scryptHash(password, salt);
+        userList.push_back(DemoUser{username,hash,salt});
+        return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
+    });
+
+    // temporary test route for login
+    server.route("/login", QHttpServerRequest::Method::Post, [&userList](const QHttpServerRequest &request)
+    {
+        QJsonDocument doc = QJsonDocument::fromJson(request.body());
+        QJsonObject obj = doc.object();
+        QString username = obj["username"].toString();
+        QString password = obj["password"].toString();
+
+        for(int i = 0; i < userList.size(); i++)
+        {
+            if (userList[i].username == username && userList[i].passwordHash == PasswordHasher::scryptHash(password,userList[i].salt))
+            {
+                QJsonObject response;
+                response["authToken"] = "abc";
+                return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
+            }
+        }
+        return QHttpServerResponse(("Incorrect Username or Password"), QHttpServerResponse::StatusCode::BadRequest);
+    });
+
 
     if(!server.bind(&tcpServer)){ // connect the TCP listener to the HTTP server
         qDebug() << "Failed to bind HTTP server";
