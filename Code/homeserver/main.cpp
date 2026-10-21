@@ -23,11 +23,11 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
-    Database events; // events are stored in PostgreSQL
+    Database database; // events are stored in PostgreSQL
 
-    if(!events.open())
+    if(!database.open())
     {
-        qCritical() << "Failed to connect to the database:" << events.lastError();
+        qCritical() << "Failed to connect to the database:" << database.lastError();
         return -1;
     }
 
@@ -44,9 +44,9 @@ int main(int argc, char *argv[])
     // When someone requests /health, run healthCheck()
     server.route("/health", healthCheck);
 
-    server.route("/events/", QHttpServerRequest::Method::Get, [&events](int id)
+    server.route("/events/", QHttpServerRequest::Method::Get, [&database](int id)
     {
-        std::optional<QJsonObject> event = events.event(id);
+        std::optional<QJsonObject> event = database.event(id);
         if(!event)
         {
             return QHttpServerResponse("Event not found", QHttpServerResponse::StatusCode::NotFound);
@@ -57,41 +57,49 @@ int main(int argc, char *argv[])
         }
     });
 
-    server.route("/events", QHttpServerRequest::Method::Post, [&events](const QHttpServerRequest &request)
+    server.route("/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
         {
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
-        std::optional<qint64> id = events.addEvent(doc.object());
+        std::optional<qint64> id = database.addEvent(doc.object());
         if(!id)
         {
-            qWarning() << "Failed to store event:" << events.lastError();
+            qWarning() << "Failed to store event:" << database.lastError();
             return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
         }
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
     // temporary test route for registration
-    server.route("/register", QHttpServerRequest::Method::Post, [&userList](const QHttpServerRequest &request)
+    server.route("/register", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
         QString username = obj["username"].toString();
 
-        for(int i = 0; i < userList.size(); i++)
+        if (database.user(username))
         {
-            if (userList[i].username == username)
-            {
-                return QHttpServerResponse("Username Taken", QHttpServerResponse::StatusCode::BadRequest);
-            }
+            return QHttpServerResponse("Username Taken", QHttpServerResponse::StatusCode::BadRequest);
         }
 
+
         QString password = obj["password"].toString();
-        std::vector<unsigned char> salt = PasswordHasher::salt();
-        std::vector<unsigned char> hash = PasswordHasher::scryptHash(password, salt);
-        userList.push_back(DemoUser{username,hash,salt});
+        std::vector<unsigned char> saltVector = PasswordHasher::salt();
+        std::vector<unsigned char> hashVector = PasswordHasher::scryptHash(password, saltVector);
+        QByteArray salt((const char*)saltVector.data(), saltVector.size());
+        QByteArray passwordHash((const char*)hashVector.data(), hashVector.size());
+        //userList.push_back(DemoUser{username,hash,salt});
+        std::optional<qint64> userId = database.createUser(username, passwordHash, salt);
+
+        if (!userId)
+        {
+            qWarning() << "Failed to create user:" << database.lastError();
+            return QHttpServerResponse("Failed to create user", QHttpServerResponse::StatusCode::InternalServerError);
+        }
+
         return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
     });
 

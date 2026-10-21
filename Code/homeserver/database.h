@@ -92,8 +92,7 @@ public:
      * @note The caller is responsible for hashing, salt generation, and cryptographic strength validation.
      */
     std::optional<qint64> createUser(const QString &username,
-        const QByteArray &passwordHash, const QByteArray &salt,
-        const QString &algorithm, const QJsonObject &parameters);
+        const QByteArray &passwordHash, const QByteArray &salt);
     /**
      * @brief Look up an internal authentication record by username.
      *
