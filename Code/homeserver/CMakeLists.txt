@@ -15,8 +15,8 @@ endif()
 
 qt_add_executable(apphomeserver
     main.cpp
-    eventstore.h
-    eventstore.cpp
+    database.h
+    database.cpp
 )
 
 qt_add_qml_module(apphomeserver

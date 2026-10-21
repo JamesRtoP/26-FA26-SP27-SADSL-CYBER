@@ -10,7 +10,7 @@
 #include <QDebug>
 #include <QJsonObject>
 
-#include "eventstore.h"
+#include "database.h"
 
 QString healthCheck(){
     return "OK";
@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
-    EventStore events; // events are stored in PostgreSQL
+    Database events; // events are stored in PostgreSQL
 
     if(!events.open())
     {
