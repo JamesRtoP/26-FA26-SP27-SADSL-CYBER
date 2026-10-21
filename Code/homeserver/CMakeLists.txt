@@ -23,6 +23,7 @@ qt_add_qml_module(apphomeserver
     URI homeserver
     QML_FILES
         Main.qml
+        RESOURCES TEST.md
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
