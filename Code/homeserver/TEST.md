@@ -130,33 +130,3 @@ The script finishes with `ROLLBACK`, removing its sample rows. PostgreSQL-genera
 | Event missing after restart | Check the recorded ID, branch, database name, host, and port are unchanged. |
 | Demo usernames already exist | A prior run may have committed fixture data. Inspect it or use another deliberately prepared demo environment; do not delete unknown records blindly. |
 | `/register`, `/login`, or `/user/events` returns 404 | Those endpoints are not implemented in this branch. They are not part of this demo. |
-
-## Test record
-
-Record the actual results rather than assuming expected output occurred.
-
-| Item | Actual result / evidence |
-|---|---|
-| Date and tester | |
-| Branch and commit SHA | |
-| Qt version / kit | |
-| PostgreSQL version | |
-| Database name | |
-| Health check | |
-| HTTP POST status and event ID | |
-| GET before restart | |
-| Health unavailable while stopped | |
-| GET after restart | |
-| Five tables and migration version | |
-| Duplicate username rejected | |
-| Alice/Bob inbox results | |
-| Duplicate membership count | |
-| Invalid-recipient rollback | |
-| Active/revoked/expired session counts | |
-| Fixture rollback completed | |
-| Failures or skipped checks | |
-
-## Closing explanation
-
-“The database implementation provides persistent event storage, account credential records, session records, and user inbox relationships. This demonstration checks event persistence through the running homeserver and checks the schema's constraints and session/inbox behavior directly in PostgreSQL. Authentication integration and client-side encryption remain separate work.”
-
