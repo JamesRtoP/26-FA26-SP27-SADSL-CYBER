@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
         }
     });
 
-    server.route("/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/user/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
