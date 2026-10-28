@@ -156,17 +156,93 @@ ApplicationWindow {
         clientService.sendMessage(currentChat.name, body)
     }
 
+    function formattedEventTime(timestamp) {
+        if (!timestamp)
+            return ""
+
+        const date = new Date(timestamp)
+
+        if (isNaN(date.getTime()))
+            return ""
+
+        return Qt.formatTime(date, "HH:mm")
+    }
+
+    function populateConversations(events) {
+        const loadedChats = []
+        const chatIndices = {}
+        const myUsername = root.accountName.toLowerCase()
+
+        for (let i = 0; i < events.length; ++i) {
+            const event = events[i]
+            const sender = String(event.sender || "")
+            const recipient = String(event.recipient || "")
+
+            let otherUsername = ""
+
+            if (sender.toLowerCase() === myUsername)
+                otherUsername = recipient
+            else if (recipient.toLowerCase() === myUsername)
+                otherUsername = sender
+            else
+                continue
+
+            if (!otherUsername.length)
+                continue
+
+            const key = otherUsername.toLowerCase()
+            let chatIndex = chatIndices[key]
+
+            if (chatIndex === undefined) {
+                chatIndex = loadedChats.length
+                chatIndices[key] = chatIndex
+
+                loadedChats.push({
+                    name: otherUsername,
+                    preview: "No messages yet",
+                    messages: []
+                })
+            }
+
+            if (String(event.eventType || "") === "message") {
+                const body =
+                    event.data === undefined
+                    || event.data === null
+                    ? ""
+                    : String(event.data)
+
+                if (body.length > 0) {
+                    loadedChats[chatIndex].messages.push({
+                        body: body,
+                        time: root.formattedEventTime(
+                            event.timestamp),
+                        sender: sender
+                    })
+
+                    loadedChats[chatIndex].preview = body
+                }
+            }
+        }
+
+        root.conversations = loadedChats
+        root.selectedChat =
+            loadedChats.length > 0 ? 0 : -1
+    }
+
     Connections {
         target: clientService
 
         function onRegistrationSucceeded() {
             root.authBusy = false
-            root.authStatus = "Account created. You can sign in now."
+            root.authStatus =
+                "Account created. You can sign in now."
         }
 
         function onRegistrationFailed(message) {
             root.authBusy = false
-            root.authStatus = message || "Registration failed. Check the homeserver."
+            root.authStatus =
+                message
+                || "Registration failed. Check the homeserver."
         }
 
         function onLoginSucceeded(authToken) {
@@ -174,21 +250,43 @@ ApplicationWindow {
             root.authStatus = ""
             root.accountName = root.pendingAccount
             root.loggedIn = true
+            root.conversations = []
+            root.selectedChat = -1
             passwordField.clear()
+
+            clientService.loadEvents()
         }
 
         function onLoginFailed(message) {
             root.authBusy = false
-            root.authStatus = message || "Sign-in failed. Check the homeserver."
+            root.authStatus =
+                message
+                || "Sign-in failed. Check the homeserver."
+        }
+
+        function onEventsLoaded(events) {
+            root.populateConversations(events)
+        }
+
+        function onEventsLoadFailed(message) {
+            console.warn("Could not load events:", message)
+
+            root.messageStatus =
+                message
+                || "Could not load conversation history."
         }
 
         function onChatStarted() {
-            root.conversations = root.conversations.concat([{
-                name: root.pendingRecipient,
-                preview: "No messages yet",
-                messages: []
-            }])
-            root.selectedChat = root.conversations.length - 1
+            root.conversations =
+                root.conversations.concat([{
+                    name: root.pendingRecipient,
+                    preview: "No messages yet",
+                    messages: []
+                }])
+
+            root.selectedChat =
+                root.conversations.length - 1
+
             root.chatBusy = false
             root.chatStatus = ""
             recipientField.clear()
@@ -197,16 +295,29 @@ ApplicationWindow {
 
         function onChatFailed(message) {
             root.chatBusy = false
-            root.chatStatus = message || "Couldn't start this conversation."
+
+            root.chatStatus =
+                message
+                || "Couldn't start this conversation."
         }
 
         function onMessageSent() {
             let updated = root.conversations.slice()
-            let chat = Object.assign({}, updated[root.pendingMessageChat])
+
+            let chat = Object.assign(
+                {},
+                updated[root.pendingMessageChat]
+            )
+
             chat.messages = chat.messages.concat([{
                 body: root.pendingBody,
-                time: Qt.formatTime(new Date(), "HH:mm")
+                time: Qt.formatTime(
+                    new Date(),
+                    "HH:mm"
+                ),
+                sender: root.accountName
             }])
+
             chat.preview = root.pendingBody
             updated[root.pendingMessageChat] = chat
             root.conversations = updated
@@ -215,13 +326,19 @@ ApplicationWindow {
             root.pendingMessageChat = -1
             root.pendingBody = ""
             composer.clear()
-            Qt.callLater(function() { messageList.positionViewAtEnd() })
+
+            Qt.callLater(function() {
+                messageList.positionViewAtEnd()
+            })
         }
 
         function onMessageFailed(message) {
             root.sendBusy = false
             root.pendingMessageChat = -1
-            root.messageStatus = message || "Message wasn't sent. Try again."
+
+            root.messageStatus =
+                message
+                || "Message wasn't sent. Try again."
         }
     }
 
@@ -944,6 +1061,7 @@ ApplicationWindow {
 
             // Unified sidebar.
             Rectangle {
+                id: sidebar
                 SplitView.preferredWidth: 320
                 SplitView.minimumWidth: 235
                 SplitView.maximumWidth: 440
@@ -1422,71 +1540,238 @@ ApplicationWindow {
 
             // Conversation area.
             ColumnLayout {
+                id: conversationPane
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 520
                 spacing: 0
-
-                // Only shown after selecting a conversation.
+                // Deep-space conversation header.
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight:
-                        root.currentChat ? 62 : 0
+                        root.currentChat ? 82 : 0
+
                     visible: root.currentChat !== null
-                    color: "#0F161E"
+                    color: "#101216"
+
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+
+                        GradientStop {
+                            position: 0.0
+                            color: "#171A1F"
+                        }
+
+                        GradientStop {
+                            position: 0.55
+                            color: "#101217"
+                        }
+
+                        GradientStop {
+                            position: 1.0
+                            color: "#090B0F"
+                        }
+                    }
+
+                    Canvas {
+                        anchors.fill: parent
+                        opacity: 0.55
+
+                        Component.onCompleted: requestPaint()
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
+
+                        onPaint: {
+                            const ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+
+                            const points = [
+                                [0.08, 0.28],
+                                [0.31, 0.68],
+                                [0.52, 0.21],
+                                [0.73, 0.62],
+                                [0.91, 0.25]
+                            ]
+
+                            for (let i = 0;
+                                 i < points.length;
+                                 ++i) {
+                                ctx.fillStyle =
+                                    i === 3
+                                    ? "rgba(239,203,139,0.42)"
+                                    : "rgba(205,215,224,0.26)"
+
+                                ctx.beginPath()
+                                ctx.arc(
+                                    points[i][0] * width,
+                                    points[i][1] * height,
+                                    i === 1 ? 1.3 : 0.85,
+                                    0,
+                                    Math.PI * 2
+                                )
+                                ctx.fill()
+                            }
+                        }
+                    }
 
                     RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 24
-                        anchors.rightMargin: 24
-                        spacing: 11
+                        anchors.left: parent.left
+                        anchors.leftMargin: 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 9
 
-                        Rectangle {
-                            Layout.preferredWidth: 34
-                            Layout.preferredHeight: 34
-                            radius: 17
-                            color: "#24394A"
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.currentChat
-                                      ? root.currentChat.name
-                                            .substring(0, 2)
-                                            .toUpperCase()
-                                      : ""
-                                color: "#70CBFF"
-                                font.family: "Consolas"
-                                font.pixelSize: 11
-                                font.weight: Font.Bold
-                            }
+                        Text {
+                            Layout.alignment: Qt.AlignBaseline
+                            text: "Messages"
+                            color: "#85909B"
+                            font.family: "Consolas"
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
                         }
 
                         Text {
-                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignBaseline
+                            text: "/"
+                            color: "#AAB4BE"
+                            font.family: "Consolas"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                        }
+
+                        Text {
+                            Layout.alignment: Qt.AlignBaseline
+
                             text: root.currentChat
                                   ? root.currentChat.name
                                   : ""
+
                             textFormat: Text.PlainText
                             color: "#E8EEF5"
                             font.family: "Consolas"
                             font.pixelSize: 15
                             font.weight: Font.DemiBold
-                            elide: Text.ElideRight
                         }
                     }
-                }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight:
-                        root.currentChat ? 1 : 0
-                    visible: root.currentChat !== null
-                    color: "#263440"
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: "#252B32"
+                    }
                 }
-
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    // Static deep-space conversation background.
+                    Canvas {
+                        id: conversationSpace
+                        anchors.fill: parent
 
+                        readonly property var stars: [
+                            [0.04, 0.10], [0.12, 0.32],
+                            [0.18, 0.72], [0.24, 0.18],
+                            [0.31, 0.51], [0.38, 0.86],
+                            [0.44, 0.27], [0.49, 0.64],
+                            [0.55, 0.12], [0.61, 0.43],
+                            [0.67, 0.79], [0.72, 0.23],
+                            [0.78, 0.57], [0.83, 0.89],
+                            [0.88, 0.35], [0.94, 0.68],
+                            [0.98, 0.16], [0.08, 0.91],
+                            [0.35, 0.07], [0.58, 0.94],
+                            [0.75, 0.06], [0.91, 0.82]
+                        ]
+
+                        Component.onCompleted: requestPaint()
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
+
+                        onPaint: {
+                            const ctx = getContext("2d")
+                            ctx.clearRect(0, 0, width, height)
+
+                            // Near-black purple base.
+                            const background =
+                                ctx.createLinearGradient(
+                                    0,
+                                    0,
+                                    width,
+                                    height
+                                )
+
+                            background.addColorStop(
+                                0.0,
+                                "#0D0F12"
+                            )
+
+                            background.addColorStop(
+                                0.55,
+                                "#090B0E"
+                            )
+
+                            background.addColorStop(
+                                1.0,
+                                "#060709"
+                            )
+
+                            ctx.fillStyle = background
+                            ctx.fillRect(0, 0, width, height)
+
+                            // Very subtle plum nebula.
+                            const nebula =
+                                ctx.createRadialGradient(
+                                    width * 0.72,
+                                    height * 0.24,
+                                    0,
+                                    width * 0.72,
+                                    height * 0.24,
+                                    Math.max(width, height) * 0.72
+                                )
+
+                            nebula.addColorStop(
+                                0.0,
+                                "rgba(78,86,96,0.10)"
+                            )
+
+                            nebula.addColorStop(
+                                0.42,
+                                "rgba(52,58,66,0.05)"
+                            )
+
+                            nebula.addColorStop(
+                                1.0,
+                                "rgba(0,0,0,0)"
+                            )
+
+                            ctx.fillStyle = nebula
+                            ctx.fillRect(0, 0, width, height)
+
+                            // Sparse, deterministic stars.
+                            for (let i = 0;
+                                 i < stars.length;
+                                 ++i) {
+                                const x = stars[i][0] * width
+                                const y = stars[i][1] * height
+                                const warm = i % 7 === 0
+                                const radius =
+                                    i % 5 === 0 ? 1.25 : 0.75
+
+                                ctx.fillStyle = warm
+                                    ? "rgba(239,203,139,0.40)"
+                                    : "rgba(205,215,224,0.24)"
+
+                                ctx.beginPath()
+                                ctx.arc(
+                                    x,
+                                    y,
+                                    radius,
+                                    0,
+                                    Math.PI * 2
+                                )
+                                ctx.fill()
+                            }
+                        }
+                    }
                     // Empty workspace.
                     ColumnLayout {
                         anchors.centerIn: parent
@@ -1498,7 +1783,7 @@ ApplicationWindow {
                             Layout.preferredWidth: 140
                             Layout.preferredHeight: 115
                             Layout.alignment: Qt.AlignHCenter
-                            opacity: 0.65
+                            opacity: 0.9
 
                             Component.onCompleted: requestPaint()
                             onWidthChanged: requestPaint()
@@ -1509,9 +1794,16 @@ ApplicationWindow {
                                 ctx.clearRect(0, 0, width, height)
 
                                 ctx.strokeStyle =
-                                    "rgba(85,189,255,0.78)"
+                                    "rgba(88,24,34,0.92)"
                                 ctx.fillStyle =
-                                    "rgba(85,189,255,0.78)"
+                                    "rgba(108,28,40,0.88)"
+
+                                ctx.shadowColor =
+                                    "rgba(128,28,43,0.34)"
+                                ctx.shadowBlur = 10
+                                ctx.shadowOffsetX = 0
+                                ctx.shadowOffsetY = 0
+
                                 ctx.lineWidth = 2.5
                                 ctx.lineCap = "round"
                                 ctx.lineJoin = "round"
@@ -1570,7 +1862,7 @@ ApplicationWindow {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: "WSU DATA SCIENCE LAB"
-                            color: "#536B7D"
+                            color: "#5E6872"
                             font.family: "Consolas"
                             font.pixelSize: 9
                             font.letterSpacing: 1.4
@@ -1599,7 +1891,7 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             visible: messageList.count === 0
                             text: "No messages yet"
-                            color: "#71869A"
+                            color: "#7D8791"
                             font.family: "Consolas"
                             font.pixelSize: 11
                         }
@@ -1621,16 +1913,16 @@ ApplicationWindow {
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: root.accountName
-                                          .substring(0, 2)
-                                          .toUpperCase()
+                                    text: String(
+                                              messageRow.modelData.sender
+                                              || root.accountName
+                                          ).substring(0, 2).toUpperCase()
                                     color: "#70CBFF"
                                     font.family: "Consolas"
                                     font.pixelSize: 10
                                     font.weight: Font.Bold
                                 }
                             }
-
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 5
@@ -1639,7 +1931,8 @@ ApplicationWindow {
                                     spacing: 9
 
                                     Text {
-                                        text: root.accountName
+                                        text: messageRow.modelData.sender
+                                              || root.accountName
                                         textFormat: Text.PlainText
                                         color: "#70CBFF"
                                         font.family: "Consolas"
@@ -1712,7 +2005,7 @@ ApplicationWindow {
                             enabled: !root.sendBusy
                             placeholderText:
                                 root.currentChat
-                                ? "Message " + root.currentChat.name
+                                ? "Message @" + root.currentChat.name
                                 : ""
                             placeholderTextColor: "#71869A"
                             color: "#E8EEF5"
@@ -1742,13 +2035,17 @@ ApplicationWindow {
                             enabled:
                                 !root.sendBusy
                                 && composer.text.trim().length > 0
-                            hoverEnabled: true
-                            opacity: enabled ? 1 : 0.4
+
+                            hoverEnabled: enabled
+                            opacity: 1
 
                             contentItem: Text {
-                                text: root.sendBusy
-                                      ? "..." : "SEND"
-                                color: "#07131D"
+                                text: root.sendBusy ? "..." : "SEND"
+
+                                color: sendButton.enabled
+                                       ? "#07131D"
+                                       : "#9FB1C0"
+
                                 font.family: "Consolas"
                                 font.pixelSize: 11
                                 font.weight: Font.DemiBold
@@ -1758,11 +2055,25 @@ ApplicationWindow {
 
                             background: Rectangle {
                                 radius: 6
-                                color: sendButton.down
-                                       ? "#329FDE"
-                                       : sendButton.hovered
-                                         ? "#7ACBFF"
-                                         : "#55BDFF"
+
+                                color: !sendButton.enabled
+                                       ? "#1D2B36"
+                                       : sendButton.down
+                                         ? "#329FDE"
+                                         : sendButton.hovered
+                                           ? "#7ACBFF"
+                                           : "#55BDFF"
+
+                                border.width:
+                                    sendButton.enabled ? 0 : 1
+
+                                border.color: "#304452"
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: 100
+                                    }
+                                }
                             }
 
                             onClicked:
@@ -1777,8 +2088,13 @@ ApplicationWindow {
     // New-conversation dialog.
     Popup {
         id: newChatDialog
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(400, root.width - 48)
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+
+        width: Math.min(
+            400,
+            parent.width - 48
+        )
         padding: 26
         modal: true
         focus: true

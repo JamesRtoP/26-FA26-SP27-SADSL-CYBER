@@ -2,6 +2,7 @@
 #include <QDebug>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include "clientservice.h"
 #include <QNetworkRequest> // describes one HTTP request
 #include <Qurl>
@@ -147,6 +148,96 @@ void ClientService::sendMessage(const QString &recipient, const QString &message
         } else{
             emit messageFailed(response.isEmpty() ? "Failed to send message" : response);
         }
+        reply->deleteLater();
+    });
+}
+
+/*
+ * Loads the logged-in user's event queue from the homeserver.
+ * GET /user/events
+ */
+void ClientService::loadEvents()
+{
+    if (authToken.isEmpty() || currentUsername.isEmpty()) {
+        emit eventsLoadFailed("Missing login information");
+        return;
+    }
+
+    QNetworkRequest request(
+        QUrl("http://127.0.0.1:8080/user/events"));
+
+    request.setHeader(
+        QNetworkRequest::ContentTypeHeader,
+        "application/json");
+
+    QJsonObject data;
+    data["username"] = currentUsername;
+    data["authToken"] = authToken;
+
+    QByteArray jsonData =
+        QJsonDocument(data).toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager.sendCustomRequest(
+        request,
+        QByteArrayLiteral("GET"),
+        jsonData);
+
+    connect(reply, &QNetworkReply::finished, this,[this, reply]() {
+        const int statusCode = reply->attribute(
+                                        QNetworkRequest::HttpStatusCodeAttribute
+                                        ).toInt();
+
+        const QByteArray response = reply->readAll();
+
+        if (statusCode == 204
+            || (statusCode == 200
+                && response.trimmed().isEmpty())) {
+            emit eventsLoaded(QVariantList{});
+            reply->deleteLater();
+            return;
+        }
+
+        if (statusCode != 200) {
+            const QString message =
+                QString::fromUtf8(response);
+
+            emit eventsLoadFailed(
+                message.isEmpty()
+                    ? "Failed to load events"
+                    : message);
+
+            reply->deleteLater();
+            return;
+        }
+
+        const QJsonDocument document =
+            QJsonDocument::fromJson(response);
+
+        QJsonArray events;
+
+        if (document.isArray()) {
+            events = document.array();
+        } else if (document.isObject()) {
+            const QJsonObject object = document.object();
+
+            if (object.value("events").isArray()) {
+                events = object.value("events").toArray();
+            } else if (object.value("queue").isArray()) {
+                events = object.value("queue").toArray();
+            } else {
+                emit eventsLoadFailed(
+                    "Event response contains no event queue");
+                reply->deleteLater();
+                return;
+            }
+        } else {
+            emit eventsLoadFailed(
+                "Invalid event response from homeserver");
+            reply->deleteLater();
+            return;
+        }
+
+        emit eventsLoaded(events.toVariantList());
         reply->deleteLater();
     });
 }

@@ -4,6 +4,7 @@
 #include <QString>
 #include <QObject>
 #include <QNetworkAccessManager> // sends HTTP requests
+#include <QVariantList>
 
 class ClientService : public QObject
 {
@@ -17,6 +18,7 @@ public:
     Q_INVOKABLE void loginUser(const QString &username, const QString &password);
     Q_INVOKABLE void startChat(const QString &recipient);
     Q_INVOKABLE void sendMessage(const QString &recipient, const QString &message);
+    Q_INVOKABLE void loadEvents();
 
 signals:
     // will be used to pass the auth token throughout the client code
@@ -27,6 +29,8 @@ signals:
     void chatFailed(const QString &message);
 
     void messageSent();
+    void eventsLoaded(const QVariantList &events);
+    void eventsLoadFailed(const QString &message);
     void messageFailed(const QString &message);
 
     void registrationSucceeded();
