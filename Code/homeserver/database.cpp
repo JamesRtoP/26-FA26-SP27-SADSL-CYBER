@@ -271,16 +271,16 @@ std::optional<StoredUser> Database::user(const QString &username)
  * @brief Store an independently expiring authentication session.
  *
  * @param userId ID of an existing user.
- * @param token Binary 32-byte SHA-256 digest of a high-entropy bearer token, not raw or hexadecimal text.
+ * @param token 36-character session token (UUID text), stored as given rather than as a digest.
  * @param expiresAt Valid future expiration instant, normalized to UTC when stored.
  * @return true on insertion; false on validation, constraint, or SQL failure.
- * @note Token generation and hashing belong to the caller. Multiple sessions per user are supported.
+ * @note Token generation belongs to the caller. Multiple sessions per user are supported.
  */
 bool Database::storeSession(qint64 userId, const QString &token, const QDateTime &expiresAt)
 {
     m_lastError.clear();
     if (token.size() != 36 || !expiresAt.isValid() || expiresAt <= QDateTime::currentDateTimeUtc()) {
-        m_lastError = "A session requires a 36-byte token digest and a future expiration";
+        m_lastError = "A session requires a 36-character token and a future expiration";
         return false;
     }
     QSqlQuery query(QSqlDatabase::database(m_connectionName));
@@ -294,9 +294,9 @@ bool Database::storeSession(qint64 userId, const QString &token, const QDateTime
 }
 
 /**
- * @brief Resolve a token digest to the user of an active session.
+ * @brief Resolve a session token to the user of an active session.
  *
- * @param token Binary SHA-256 digest of the presented bearer token.
+ * @param token Session token presented by the client.
  * @return The user ID, or std::nullopt for an unknown, expired, revoked, or failed lookup.
  * @note Uses the database clock for expiry. Inactive or missing sessions leave lastError() empty.
  */
@@ -316,7 +316,7 @@ std::optional<qint64> Database::sessionUser(const QByteArray &token)
 /**
  * @brief Idempotently revoke one authentication session.
  *
- * @param token Binary SHA-256 digest identifying the session.
+ * @param token Session token identifying the session.
  * @return true even if already revoked or unknown; false on SQL failure.
  * @note Preserves the first revocation timestamp and leaves other sessions active.
  */
