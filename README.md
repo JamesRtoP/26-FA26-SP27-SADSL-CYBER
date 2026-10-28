@@ -15,6 +15,7 @@ libsignal
 ### Installation Steps
 - Clone GitHub Repository
 - Open CMakeLists.txt from /Code/homeserver in Qt Creator to run the home server
+- See [TESTING.md](TESTING.md) for step-by-step testing instructions
 ### Homeserver Database Setup
 The homeserver stores events in PostgreSQL using Qt SQL's QPSQL driver.
 - Create the database user and database (run as the `postgres` superuser):
