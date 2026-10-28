@@ -81,17 +81,17 @@ Run these in a terminal while the homeserver is running. On Windows, use Git Bas
 
 Keep the homeserver running.
 
-1. In Qt Creator, open `Code/Q3_Client/CMakeLists.txt`, select the same kit, and click **Run**. A "Q3-Client" window opens.
-2. Enter a new username (for example `bob`) and a password, then click **Register**.
-   **Expected:** no red error text.
-3. Click **Register** again with the same username.
-   **Expected:** red text `Username Taken`.
-4. Click **Login** with a wrong password.
-   **Expected:** red text `Incorrect Username or Password`.
-5. Click **Login** with the correct password.
-   **Expected:** the window switches to the chat screen (Recipient Username, Start Chat, message box).
-6. Enter `alice` as the recipient and click **Start Chat**.
-   **Expected (known limitation):** a red error such as `Failed to start chat`, and **Send Message** stays disabled. The server route for chats is not implemented yet.
+1. In Qt Creator, open `Code/Q3_Client/CMakeLists.txt`, select the same kit, and click **Run**. A "Q3-Chat" window opens on the **SIGN IN** screen.
+2. Enter a new username (for example `bob`) and a password, then click **Create account**.
+   **Expected:** the message `Account created. You can sign in now.`
+3. Click **Create account** again with the same username.
+   **Expected:** the error `Username Taken`.
+4. Click **Sign in** with a wrong password.
+   **Expected:** the error `Incorrect Username or Password`.
+5. Click **Sign in** with the correct password.
+   **Expected:** the window switches to the chat screen, with a **Messages** sidebar on the left.
+6. Click **+** (New conversation) in the sidebar, enter `alice`, and click **Start chat**.
+   **Expected (known limitation):** the dialog stays open and shows an error such as `Failed to start chat`, and no conversation is added. The server route for chats is not implemented yet.
 
 ## 6. Check the client's local database
 
@@ -168,7 +168,7 @@ SELECT id, body FROM events ORDER BY id;
 | `curl: (7) Failed to connect` | The homeserver isn't running, or port 8080 is in use by another program |
 | Register or login returns `500` | You're likely using a database created by an older build. Create a new database (step 2) and point `HOMESERVER_DB_NAME` at it |
 | Client login shows `Could not open local message storage` | The client can't write its data folder. Check permissions, or set `Q3_CLIENT_DATA_DIR` to a writable folder |
-| Start Chat shows an error | Expected for now (see "What works today") |
+| Start chat shows an error | Expected for now (see "What works today") |
 
 ## Clean up
 
