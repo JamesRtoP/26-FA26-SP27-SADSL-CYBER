@@ -9,6 +9,7 @@
 #include <QHostAddress>
 #include <QDebug>
 #include <QJsonObject>
+#include <QJsonArray>
 
 #include "database.h"
 #include "passwordhasher.h"
@@ -44,28 +45,53 @@ int main(int argc, char *argv[])
     // When someone requests /health, run healthCheck()
     server.route("/health", healthCheck);
 
-    server.route("/events/", QHttpServerRequest::Method::Get, [&database](int id)
+    server.route("/user/events", QHttpServerRequest::Method::Get, [&database](const QHttpServerRequest &request)
     {
-        std::optional<QJsonObject> event = database.event(id);
-        if(!event)
+        QUrlQuery query(request.url());
+        QString username = query.queryItemValue("username");
+        QString authToken = query.queryItemValue("authToken");
+        std::optional<qint64> userId = database.sessionUser(authToken.toUtf8());
+        std::optional<StoredUser> storedUser = database.user(username);
+
+        if(!userId.has_value() || !storedUser.has_value() || userId != storedUser->id)
         {
-            return QHttpServerResponse("Event not found", QHttpServerResponse::StatusCode::NotFound);
+            return QHttpServerResponse("Authentication Mismatch", QHttpServerResponse::StatusCode::BadRequest);
         }
-        else
+
+        std::optional<QList<StoredEvent>> newEvents = database.eventsForUser(userId.value());
+        QJsonArray jsonArray;
+        for (StoredEvent &ev: *newEvents)
         {
-            return QHttpServerResponse(*event, QHttpServerResponse::StatusCode::Ok);
+            QJsonObject eventObj;
+            eventObj["id"]= ev.id;
+            eventObj["body"]= ev.body;
+            jsonArray.append(eventObj);
         }
+
+        return QHttpServerResponse(jsonArray, QHttpServerResponse::StatusCode::Ok);
     });
 
-    server.route("/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/user/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
         {
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
-        std::optional<qint64> id = database.addEvent(doc.object());
-        if(!id)
+        QJsonObject event = doc.object();
+
+        QList<qint64> userIDs;
+        userIDs.append(database.user(event.value("sender").toString())->id);
+        std::optional<StoredUser> storedUser = database.user(event.value("recipient").toString());
+        if(!storedUser.has_value())
+        {
+            return QHttpServerResponse("Recipient Does Not Exist", QHttpServerResponse::StatusCode::InternalServerError);
+        }
+        userIDs.append(storedUser->id);
+        std::optional<qint64> id = database.addEvent(event);
+
+        std::optional<qint64> id2 = database.addEventForUsers(event,userIDs);
+        if(!id || !id2)
         {
             qWarning() << "Failed to store event:" << database.lastError();
             return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
