@@ -1,11 +1,14 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QStyleHints>
 #include "clientservice.h"
 
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    QGuiApplication::styleHints()->setColorScheme(
+        Qt::ColorScheme::Dark);
 
     QQmlApplicationEngine engine;
     ClientService clientService;
