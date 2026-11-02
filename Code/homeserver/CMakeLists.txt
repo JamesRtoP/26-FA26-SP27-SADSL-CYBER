@@ -5,6 +5,7 @@ project(homeserver VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 
+find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql)
 find_package(OpenSSL REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer)
 
@@ -18,12 +19,15 @@ endif()
 
 qt_add_executable(apphomeserver
     main.cpp
+    database.h
+    database.cpp
 )
 
 qt_add_qml_module(apphomeserver
     URI homeserver
     QML_FILES
         Main.qml
+        RESOURCES TEST.md
         SOURCES passwordhasher.h passwordhasher.cpp
         SOURCES demoUser.h
 )
@@ -42,6 +46,7 @@ set_target_properties(apphomeserver PROPERTIES
 target_link_libraries(apphomeserver
     PRIVATE Qt6::Quick
     PRIVATE Qt6::HttpServer
+    PRIVATE Qt6::Sql
     PRIVATE OpenSSL::Crypto
 )
 
