@@ -2,7 +2,6 @@
 #define PQXDH_KEY_MANAGER_H
 
 #include <vector>
-#include <string>
 #include <stdexcept>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
@@ -40,6 +39,14 @@ private:
     EVP_PKEY* signed_prekey_pair = nullptr;// SPK_B
     EVP_PKEY* pq_signed_prekey_pair = nullptr; // PQSPK_B
 
+    uint32_t signed_prekey_pair_id = 10;
+
+    uint32_t pq_signed_prekey_pair_id = 20;
+
+    uint32_t curve_pool_id = 1000;
+
+    uint32_t pq_pool_id = 2000;
+
     struct InternalKey
     {
         uint32_t id;
@@ -53,6 +60,10 @@ private:
     std::vector<uint8_t> sign_data(const std::vector<uint8_t>& data);
 public:
     PQXDH_Key_Manager();
+    ~PQXDH_Key_Manager();
+    std::vector<UnsignedPublicKey> generate_curve_one_time_prekeys(int count);
+    std::vector<SignedPublicKey> generate_pq_one_time_prekeys(int count);
+    PublicKeyBundle generate_base_bundle();
 };
 
 #endif // PQXDH_KEY_MANAGER_H
