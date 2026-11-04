@@ -5,6 +5,7 @@ project(Q3_Client VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Sql)
+find_package(OpenSSL REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
@@ -23,6 +24,7 @@ qt_add_qml_module(appQ3_Client
         Main.qml
         SOURCES clientservice.h clientservice.cpp
         SOURCES clientdatabase.h clientdatabase.cpp
+        SOURCES pqxdh_key_manager.h pqxdh_key_manager.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -40,6 +42,8 @@ target_link_libraries(appQ3_Client
     PRIVATE Qt6::Quick # QML/UI
     PRIVATE Qt6::Network # lets the client send HTTP Requests
     PRIVATE Qt6::Sql # local SQLite message storage
+    PRIVATE OpenSSL::Crypto
+    PRIVATE OpenSSL::SSL
 )
 
 # Unit tests for the local database: cmake -DQ3_CLIENT_BUILD_TESTS=ON, then ctest
