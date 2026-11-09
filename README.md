@@ -39,7 +39,7 @@ The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's Q
 
 | ID | Requirement | Description | Source | Priority |
 |---|---|---|---|---|
-| FR-01 | REST API Endpoints | Homeservers shall provide a REST API with POST endpoints for uploading a client's public keys and events and GET endpoints for retrieving public keys and a client's queued events. | Team technical decision | Level 0 |
+| FR-01 | REST API Endpoints | Homeservers shall provide a REST API with POST endpoints for uploading a client's public keys and events. GET endpoints must also be provided for retrieving public keys and a client's queued events. | Team technical decision | Level 0 |
 | FR-02 | User Key Retrieval | Homeservers shall retrieve user public keys from other homeservers and provide them to requesting clients for the initial key exchange. | Team technical decision | Level 0 |
 | FR-03 | New Key Generation | Homeservers shall request new one-time prekeys from a client application when most of that user's uploaded prekeys have been used. | Team technical decision | Level 1 |
 | FR-10 | Account Registration and Authentication | Homeservers shall register accounts using only a username and password, store each password as a salted, memory-hard hash, and issue expiring, revocable session tokens at login. | Client Project Specification (anonymity) | Level 0 |
