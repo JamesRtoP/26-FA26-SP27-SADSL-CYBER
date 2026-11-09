@@ -35,7 +35,8 @@ The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's Q
 
 # Requirements
 
-## Homeserver Requirements
+<details>
+<summary><b>Homeserver Requirements</b> (FR-01, FR-02, FR-03, FR-10, FR-11)</summary>
 
 | ID | Requirement | Description | Source | Priority |
 |---|---|---|---|---|
@@ -45,7 +46,10 @@ The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's Q
 | FR-10 | Account Registration and Authentication | Homeservers shall register accounts using only a username and password, store each password as a salted, memory-hard hash, and issue expiring, revocable session tokens at login. | Client Project Specification (anonymity) | Level 0 |
 | FR-11 | Offline Event Queueing | Homeservers shall keep encrypted events in each recipient's inbox until the recipient's client retrieves them. A recipient being offline shall not be treated as a delivery failure. | Team technical decision | Level 0 |
 
-## Client Application Requirements
+</details>
+
+<details>
+<summary><b>Client Application Requirements</b> (FR-04, FR-05, FR-06, FR-07, FR-14)</summary>
 
 | ID | Requirement | Description | Source | Priority |
 |---|---|---|---|---|
@@ -55,21 +59,30 @@ The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's Q
 | FR-07 | End-to-End Encryption | Client applications shall encrypt all events before sending them to the homeserver and shall decrypt events retrieved from the homeserver only on the device. | Client Project Specification | Level 0 |
 | FR-14 | Local Message History | Client applications shall store message history and private keys only on the device and shall let users delete a message for themselves or for both participants. | Team technical decision | Level 1 |
 
-## Cryptography Requirements
+</details>
+
+<details>
+<summary><b>Cryptography Requirements</b> (FR-08, FR-09)</summary>
 
 | ID | Requirement | Description | Source | Priority |
 |---|---|---|---|---|
 | FR-08 | Initial Key Exchange | The initial key exchange between clients shall use Post-Quantum Extended Diffie-Hellman (PQXDH) as specified by Signal. | Team technical decision | Level 0 |
 | FR-09 | Message Encryption | Per-message keys shall be derived with the Sparse Post-Quantum Ratchet (SPQR) together with the Double Ratchet. | Team technical decision | Level 0 |
 
-## Federation and Device Management Requirements
+</details>
+
+<details>
+<summary><b>Federation and Device Management Requirements</b> (FR-12, FR-13)</summary>
 
 | ID | Requirement | Description | Source | Priority |
 |---|---|---|---|---|
 | FR-12 | Server-to-Server Routing | Homeservers shall locate the homeserver responsible for a domain-qualified username, authenticate to it, and forward key requests and encrypted events to it, retrying while the remote homeserver is unreachable. | Client Project Specification (decentralization) | Level 1 |
 | FR-13 | New Device Linking | Client applications shall link a new device only after the user approves it on an existing device, and shall transfer contacts and keys between the devices over an end-to-end encrypted channel. Private keys shall never be uploaded to a homeserver in readable form. | Team technical decision | Level 1 |
 
-## Non-Functional Requirements
+</details>
+
+<details>
+<summary><b>Non-Functional Requirements</b> (NFR-1 to NFR-8)</summary>
 
 | ID | Requirement | Description | Verification |
 |---|---|---|---|
@@ -81,6 +94,9 @@ The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's Q
 | NFR-6 | Performance | An average, non-technical user shall be able to register an account in under 5 minutes, and a message between two online users on the same homeserver shall appear for the recipient within 5 seconds. | Timed registration with test users; timed message delivery between two test accounts |
 | NFR-7 | Anonymity | The system shall not require out-of-band credentials (email, phone number, etc.) for registration. | Review of the registration form and API |
 | NFR-8 | Usability | The system shall let users start a chat using only the other person's username. | Demonstration of the New conversation flow |
+
+</details>
+
 ## Additional Documentation
 - [Class Reports](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/main/Reports)
 - [Sprint_1 Report](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/blob/main/Sprints/Sprints_1/Sprint_Report/Sprint1_Report.md)
