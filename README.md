@@ -1,29 +1,33 @@
 # 26-FA26-SP27-SADSL-CYBER
 ## Project summary
 ### One-sentence description of the project
-Our project is an end-to-end encrypted chat application utilizing post-quantum security to ensure security once quantum computer has become widespread. Additionally our application will feature decentralized servers.
+Our project is an end-to-end encrypted chat application utilizing post-quantum encryption standards to remain secure once quantum computers become widespread. Additionally, our application will feature decentralized servers.
 ### Additional information about the project
-The primary objective of our project is to produce an end-to-end encrypted chat application that uses post-quantum cryptography. Post-quantum cryptography enables our application to remain secure both today and when quantum computing has broken standard encryption schemes. Security and anonymity are paramount to our application. For our application to attract potential users, it must be auditable and anonymously accessible. 
+The primary objective of our project is to produce an end-to-end encrypted chat application utilizing post-quantum encryption standards, so it remains secure both today and when quantum computing has broken standard encryption schemes. Security and anonymity are paramount to our application, and it must be auditable and anonymously accessible.
 
-The chat application requires a server for hosting. This server will be responsible for handling user registration and initiating connections. Once the server has initiated a connection, its sole responsibility will be forwarding messages between users and storing message history. The message history exists solely to backup messages for clients changing devices. At no point will the server be able to decrypt stored messages. 
+The homeserver will handle user registration and initiating connections, then forward messages between users and store message history as a backup for clients changing devices. At no point will the homeserver be able to decrypt stored messages. The client-side application will be responsible for all message decryption, will be the sole storage location for the encryption keys, and will handle device management and device switching.
 
-The client-side application will be responsible for all message decryptions. It will be the sole storage location for the encryption keys. To ensure security, device management and device switching will be handled entirely by the client. 
+As of Sprint 2, users can register, log in, start chats, and send and receive messages through a single homeserver. New messages are fetched from the homeserver when a user signs in. Messages are still sent as plain text; encryption, TLS, and federation are planned for upcoming sprints.
 ## Installation
 ### Prerequisites
-Qt Creator,
-libsignal
+Qt Creator (Qt 6),
+OpenSSL 3.5 or newer,
+PostgreSQL
 ### Installation Steps
-- Clone GitHub Repository
-- Open CMakeLists.txt from /Code/homeserver in Qt Creator to run the home server
+- Clone the GitHub repository
+- Set up the homeserver database (see Homeserver Database Setup below)
+- Open CMakeLists.txt from /Code/homeserver in Qt Creator to run the homeserver
+- Open CMakeLists.txt from /Code/Q3_Client in Qt Creator to run the client application
+- To run two accounts on one computer, set `Q3_CLIENT_DATA_DIR` to a different folder for each client
 - See [TESTING.md](TESTING.md) for step-by-step testing instructions
 ### Homeserver Database Setup
-The homeserver stores events in PostgreSQL using Qt SQL's QPSQL driver.
+The homeserver stores users, sessions, and events in PostgreSQL using Qt SQL's QPSQL driver.
 - Create the database user and database (run as the `postgres` superuser):
   ```sql
   CREATE ROLE homeserver LOGIN PASSWORD 'choose-a-password';
   CREATE DATABASE homeserver OWNER homeserver;
   ```
-  The homeserver creates its `events` table on startup.
+  The homeserver creates its tables on startup.
 - In Qt Creator, open Projects / Project Settings / Project Environment and add:
   - `HOMESERVER_DB_PASSWORD` = the password chosen above
 - **macOS only:** Qt's QPSQL driver needs an arm64 `libpq`. The one bundled with the EnterpriseDB PostgreSQL installer is x86_64 only, so install one with `brew install libpq` and also add this to the Run environment:
@@ -55,7 +59,10 @@ The homeserver stores events in PostgreSQL using Qt SQL's QPSQL driver.
 | FR-08 | Initial Key Exchange | Initial key exchange between clients will utilize Post-Quantum Extended Diffie-Hellman (PQXDH). | Team technical decision | Level 0 |
 | FR-09 | Message Encryption | Per-message encryption will utilize Sparse Post-Quantum Ratchet (SPQR). | Team technical decision | Level 0 |
 ## Additional Documentation
-- [Class Reports](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/feat/elastic-dashboard/Reports)
-- [Sprint_1 Report](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/blob/main/Sprints/Sprints_1/Sprint_Report/Sprint1_Report.md)
+- [Class Reports](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/main/Reports)
+- [Sprints](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/tree/main/Sprints)
+- [Testing Guide](TESTING.md)
+- [Homeserver Database](Code/homeserver/DATABASE.md)
+- [Client Database](Code/Q3_Client/DATABASE.md)
 ## License
 - [GNU General Public License](https://github.com/JamesRtoP/26-FA26-SP27-SADSL-CYBER/blob/main/LICENSE)
