@@ -25,6 +25,7 @@ qt_add_qml_module(appQ3_Client
         SOURCES clientservice.h clientservice.cpp
         SOURCES clientdatabase.h clientdatabase.cpp
         SOURCES pqxdh_key_manager.h pqxdh_key_manager.cpp
+        SOURCES pqxdh_client.h pqxdh_client.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
