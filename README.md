@@ -7,7 +7,7 @@ The primary objective of our project is to produce an end-to-end encrypted chat 
 
 The homeserver will handle user registration and initiating connections, then forward messages between users and store message history as a backup for clients changing devices. At no point will the homeserver be able to decrypt stored messages. The client-side application will be responsible for all message decryption, will be the sole storage location for the encryption keys, and will handle device management and device switching.
 
-As of Sprint 2, users can register, log in, start chats, and send and receive messages through a single homeserver. New messages are fetched from the homeserver when a user signs in. Messages are still sent as plain text; encryption, TLS, and federation are planned for upcoming sprints.
+As of Sprint 2, users can register, log in, start chats, and send/receive messages through a single homeserver. New messages are fetched from the homeserver when a user signs in. Messages are still sent as plain text; encryption, TLS, and federation are planned for upcoming sprints.
 ## Installation
 ### Prerequisites
 Qt Creator (Qt 6),
