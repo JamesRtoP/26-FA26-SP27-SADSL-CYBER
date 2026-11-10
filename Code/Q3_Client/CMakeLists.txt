@@ -14,6 +14,15 @@ if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/importedcontent)
 endif()
 
+#--Make Crytography folder into a static library--
+qt_add_library(Q3Crypto STATIC
+    cryptography/cryptography_primatives.h   cryptography/cryptography_primatives.cpp
+#    crytography/kdf.h    src/crypto/kdf.cpp
+)
+target_include_directories(Q3Crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Q3Crypto PUBLIC Qt6::Core OpenSSL::Crypto)
+#---- end static lib
+
 qt_add_executable(appQ3_Client
     main.cpp
 )
@@ -24,8 +33,10 @@ qt_add_qml_module(appQ3_Client
         Main.qml
         SOURCES clientservice.h clientservice.cpp
         SOURCES clientdatabase.h clientdatabase.cpp
-        SOURCES pqxdh_key_manager.h pqxdh_key_manager.cpp
-        SOURCES pqxdh_client.h pqxdh_client.cpp
+        #SOURCES pqxdh_key_manager.h pqxdh_key_manager.cpp
+        #SOURCES pqxdh_client.h pqxdh_client.cpp
+        SOURCES
+        SOURCES
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -66,3 +77,7 @@ install(TARGETS appQ3_Client
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+#testing
+enable_testing()
+add_subdirectory(testing)
