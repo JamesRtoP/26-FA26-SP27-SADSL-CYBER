@@ -16,7 +16,7 @@ endif()
 
 #--Make Crytography folder into a static library--
 qt_add_library(Q3Crypto STATIC
-    cryptography/cryptography_primatives.h   cryptography/cryptography_primatives.cpp
+    cryptography_primatives.h   cryptography_primatives.cpp
 #    crytography/kdf.h    src/crypto/kdf.cpp
 )
 target_include_directories(Q3Crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -56,6 +56,7 @@ target_link_libraries(appQ3_Client
     PRIVATE Qt6::Sql # local SQLite message storage
     PRIVATE OpenSSL::Crypto
     PRIVATE OpenSSL::SSL
+    PRIVATE Q3Crypto
 )
 
 # Unit tests for the local database: cmake -DQ3_CLIENT_BUILD_TESTS=ON, then ctest
@@ -70,6 +71,13 @@ if (Q3_CLIENT_BUILD_TESTS)
     target_include_directories(tst_clientdatabase PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(tst_clientdatabase PRIVATE Qt6::Sql Qt6::Test)
     add_test(NAME tst_clientdatabase COMMAND tst_clientdatabase)
+
+    #Start Q3Crypto Testing
+    qt_add_executable(testCryptoPrimatives tests/testCryptoPrimatives.cpp)
+    target_link_libraries(testCryptoPrimatives PRIVATE Q3Crypto Qt6::Test)
+    add_test(NAME testCryptoPrimatives COMMAND testCryptoPrimatives)
+
+
 endif()
 
 install(TARGETS appQ3_Client
@@ -77,7 +85,3 @@ install(TARGETS appQ3_Client
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-#testing
-enable_testing()
-add_subdirectory(testing)
