@@ -4,7 +4,7 @@
 - [X] SHA 512 Wrapper
 - [X] info string of at least 8 bytes
 - [X] pqkem (ML-KEM)
-- [ ] AEAD (The PQXDH white paper says AES256 is sufficient)
+- [X] AEAD (The PQXDH white paper says AES256 is sufficient)
 - [X] HKDF
 
 Openssl is being used for [PQXDH](https://signal.org/docs/specifications/pqxdh/pqxdh.pdf "PQXDH Specification") primatives. Openssl does not have an implmentation of [XEdDSA](https://signal.org/docs/specifications/xeddsa/ "XEdDSA Specification"). XEdDSA allows a single key pair to be used for either or both elliptic curve Diffie-Hellman and Signing. Instead of implementing this ourselves, we have decided to 
