@@ -244,7 +244,7 @@ namespace Q3Crypto
         return true;
     }
 
-    SecretData<32> generateHKDFKey(const SecretData<32>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info)
+    SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info)
     {
         EVP_KDF* kdfAlgorithm = EVP_KDF_fetch(nullptr, "HKDF", nullptr);
         if(!kdfAlgorithm){throw std::runtime_error("Failed to fetch HKDF algorithm");}
@@ -256,7 +256,7 @@ namespace Q3Crypto
             throw std::runtime_error("Failed to create EVP_KDF_CTX");
         }
 
-        char digestName[] = "SHA256";
+        char digestName[] = "SHA512";
 
         OSSL_PARAM parameters[5];
         size_t parameterCount = 0;
@@ -289,10 +289,10 @@ namespace Q3Crypto
         return derivedKey;
     }
 
-    SecretData<32> generateHKDFKey(const SecretData<32>& sharedSecret)
+    SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret)
     {
         std::vector<uint8_t> salt(64,0);
-        std::string infoString = "Q3Protocol_CURVE25519_SHA-512_CRYSTALS-KYBER-1024";
+        std::string infoString = "Q3Protocol_CURVE25519_SHA-512_ML-KEM-1024";
         std::vector<uint8_t> info(infoString.begin(), infoString.end());
         return generateHKDFKey(sharedSecret, salt, info);
     }
