@@ -321,3 +321,104 @@ bool ClientService::openDatabase(const QString &username){
     database = std::move(userDatabase);
     return true;
 }
+
+/*
+ * Uploads the signed-in user's public keys to the homeserver.
+ * Only public keys, IDs, and signatures belong in keys; private keys stay local.
+ * Reports the result through publicKeysPushed() or publicKeysPushFailed().
+ */
+void ClientService::pushPublicKeys(const QJsonObject &keys)
+{
+    if (authToken.isEmpty() || currentUsername.isEmpty()) {
+        emit publicKeysPushFailed("Sign in before uploading keys");
+        return;
+    }
+
+    if (keys.isEmpty()) {
+        emit publicKeysPushFailed("No public keys to upload");
+        return;
+    }
+
+    QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/keys"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject data;
+    data["authToken"] = authToken;
+    data["username"] = currentUsername;
+    data["keys"] = keys;
+
+    QByteArray jsonData = QJsonDocument(data).toJson(QJsonDocument::Compact);
+    QNetworkReply *reply = networkManager.post(request, jsonData);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const int statusCode =
+            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QString response = QString::fromUtf8(reply->readAll());
+
+        if (reply->error() == QNetworkReply::NoError
+            && (statusCode == 200 || statusCode == 201 || statusCode == 204)) {
+            emit publicKeysPushed();
+        } else {
+            emit publicKeysPushFailed(
+                response.isEmpty() ? reply->errorString() : response);
+        }
+
+        reply->deleteLater();
+    });
+}
+
+/*
+ * Retrieves a recipient's public-key bundle from the homeserver.
+ * Reports the bundle or an error through the retrieval signals.
+ */
+void ClientService::getPublicKeys(const QString &recipient)
+{
+    if (authToken.isEmpty() || currentUsername.isEmpty()) {
+        emit publicKeysRetrievalFailed(recipient, "Sign in before retrieving keys");
+        return;
+    }
+
+    if (recipient.trimmed().isEmpty()) {
+        emit publicKeysRetrievalFailed(recipient, "Enter a recipient");
+        return;
+    }
+
+    QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/keys"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject data;
+    data["username"] = currentUsername;
+    data["authToken"] = authToken;
+    data["recipient"] = recipient;
+
+    const QByteArray jsonData =
+        QJsonDocument(data).toJson(QJsonDocument::Compact);
+
+    QNetworkReply *reply = networkManager.sendCustomRequest(
+        request, QByteArrayLiteral("GET"), jsonData);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply, recipient]() {
+        const int statusCode =
+            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray response = reply->readAll();
+
+        if (reply->error() != QNetworkReply::NoError || statusCode != 200) {
+            const QString message = QString::fromUtf8(response);
+            emit publicKeysRetrievalFailed(
+                recipient,
+                message.isEmpty() ? reply->errorString() : message);
+        } else {
+            const QJsonDocument document = QJsonDocument::fromJson(response);
+
+            if (!document.isObject()
+                || !document.object().value("keys").isObject()) {
+                emit publicKeysRetrievalFailed(
+                    recipient, "Invalid public-key response");
+            } else {
+                emit publicKeysRetrieved(
+                    recipient, document.object().value("keys").toObject());
+            }
+        }
+
+        reply->deleteLater();
+    });
+}
