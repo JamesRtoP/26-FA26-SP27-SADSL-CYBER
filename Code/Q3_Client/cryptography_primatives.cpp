@@ -299,7 +299,7 @@ namespace Q3Crypto
 
     EVP_PKEY* generateML_KEM_1024Key()
     {
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-768", nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-1024", nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
         bool success = EVP_PKEY_keygen_init(context) == 1;
@@ -316,7 +316,7 @@ namespace Q3Crypto
         if(!success)
         {
             EVP_PKEY_free(key);
-            throw std::runtime_error("Failed to Generate ML-KEM-768 Key");
+            throw std::runtime_error("Failed to Generate ML-KEM-1024 Key");
         }
 
         return key;
@@ -324,16 +324,20 @@ namespace Q3Crypto
 
     std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart)
     {
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-768", nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-1024", nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
         std::vector<prekeyWithIdentifier> list;
-        for(int i; i <count; i++)
+        for(int i = 0; i <count; i++)
         {
             bool success = EVP_PKEY_keygen_init(context) == 1;
             if(!success)
             {
                 EVP_PKEY_CTX_free(context);
+                for(int j = 0; j < list.size(); j++)
+                {
+                    EVP_PKEY_free(list[j].key);
+                }
                 throw std::runtime_error("Failed to Initialize Context for Key Generation");
             }
             EVP_PKEY* key = nullptr;
@@ -341,7 +345,12 @@ namespace Q3Crypto
             if(!success)
             {
                 EVP_PKEY_free(key);
-                throw std::runtime_error("Failed to Generate ML-KEM-768 Key");
+                EVP_PKEY_CTX_free(context);
+                for(int j = 0; j < list.size(); j++)
+                {
+                    EVP_PKEY_free(list[j].key);
+                }
+                throw std::runtime_error("Failed to Generate ML-KEM-1024 Key");
             }
             list.push_back({key, identiferStart++});
         }
@@ -350,5 +359,60 @@ namespace Q3Crypto
 
         return list;
     }
+
+    ML_KEM_1024Result encapsulateWithMLKEM(EVP_PKEY* peerPublicKey)
+    {
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, peerPublicKey, nullptr);
+        if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
+
+        bool success = EVP_PKEY_encapsulate_init(context, nullptr) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            throw std::runtime_error("Failed to Initialize Context for Encapsulation");
+        }
+
+        ML_KEM_1024Result result;
+
+        size_t ciphertextLength = result.ciphertext.size();
+        size_t secretLength = result.sharedSecret.size();
+
+        success = EVP_PKEY_encapsulate(context, result.ciphertext.data(), &ciphertextLength, result.sharedSecret.data(), &secretLength) == 1;
+        EVP_PKEY_CTX_free(context);
+
+        if(!success)
+        {
+            OPENSSL_cleanse(result.sharedSecret.data(), result.sharedSecret.size());
+            throw std::runtime_error("Failed to Encapsulate Shared Secret");
+        }
+
+        return result;
+    }
+
+    SecretData <32> decapsulateWithMLKEM(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext)
+    {
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey, nullptr);
+        if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
+
+        bool success = EVP_PKEY_decapsulate_init(context, nullptr) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            throw std::runtime_error("Failed to Initialize Context for Decapsulation");
+        }
+        SecretData<32> sharedSecret;
+        size_t secretLength = sharedSecret.size();
+        success = EVP_PKEY_decapsulate(context, sharedSecret.data(), &secretLength, ciphertext.data(), ciphertext.size()) == 1;
+        EVP_PKEY_CTX_free(context);
+
+        if(!success)
+        {
+            OPENSSL_cleanse(sharedSecret.data(), sharedSecret.size());
+            throw std::runtime_error("Failed to Decapsulate Shared Secret");
+        }
+        return sharedSecret;
+
+    }
+
 
 }
