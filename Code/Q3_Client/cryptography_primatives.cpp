@@ -527,4 +527,12 @@ namespace Q3Crypto
         plaintext.resize(writtenLength + finalLength);
         return plaintext;
     }
+
+    identityKey generateIdentityKey()
+    {
+        identityKey IDKey;
+        IDKey.Ed25519_key = generateEd25519Key();
+        IDKey.X25519_key = generateX25519Key();
+        return IDKey;
+    }
 }

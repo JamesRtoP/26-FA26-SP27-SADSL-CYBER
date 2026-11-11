@@ -57,7 +57,7 @@ namespace Q3Crypto
     AES_256Result encryptWithAES_256_GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData);
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
 
-
+    identityKey generateIdentityKey();
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H
