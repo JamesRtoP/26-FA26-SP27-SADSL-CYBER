@@ -5,8 +5,10 @@
 #include <QJsonArray>
 #include "clientservice.h"
 #include <QNetworkRequest> // describes one HTTP request
-#include <Qurl>
+#include <QUrl>
 #include <QDateTime>
+
+static constexpr int RequestTimeoutMs = 15000;
 
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
@@ -20,6 +22,7 @@ void ClientService::registerUser(const QString &username,
                                  const QString &password)
 {
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/register"));
+    request.setTransferTimeout(RequestTimeoutMs);
 
     // tells HTTP request that body will contain JSON
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -55,6 +58,7 @@ void ClientService::registerUser(const QString &username,
 void ClientService::loginUser(const QString &username, const QString &password)
 {
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/login"));
+    request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject data;
@@ -101,6 +105,7 @@ void ClientService::loginUser(const QString &username, const QString &password)
  */
 void ClientService::startChat(const QString &recipient){
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
+    request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject data;
@@ -152,6 +157,7 @@ void ClientService::sendMessage(const QString &recipient, const QString &message
     }
 
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
+    request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject data;
@@ -198,6 +204,7 @@ void ClientService::loadEvents()
 
     QNetworkRequest request(
         QUrl("http://127.0.0.1:8080/user/events"));
+    request.setTransferTimeout(RequestTimeoutMs);
 
     request.setHeader(
         QNetworkRequest::ContentTypeHeader,
@@ -340,6 +347,7 @@ void ClientService::pushPublicKeys(const QJsonObject &keys)
     }
 
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/keys"));
+    request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject data;
@@ -383,6 +391,7 @@ void ClientService::getPublicKeys(const QString &recipient)
     }
 
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/keys"));
+    request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject data;
