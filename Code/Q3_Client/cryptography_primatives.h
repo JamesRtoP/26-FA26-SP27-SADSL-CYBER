@@ -16,6 +16,13 @@ namespace Q3Crypto
         int identifier;
     };
 
+    struct prekeyWithIdentifierSigned
+    {
+        std::vector<uint8_t> key;
+        int identifier;
+        std::array<uint8_t, 64> signature;
+    };
+
     //this is replacing XEdDSA
     struct identityKey
     {
@@ -44,7 +51,7 @@ namespace Q3Crypto
     SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey);
 
     EVP_PKEY* generateEd25519Key();
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::vector<uint8_t>& plaintext);
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::span<const std::uint8_t>& plaintext);
     bool checkSignWithEd25519(EVP_PKEY* key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext);
 
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info);
@@ -58,6 +65,9 @@ namespace Q3Crypto
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
 
     identityKey generateIdentityKey();
+    std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key);
+    prekeyWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey );
+    prekeyWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey );
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H

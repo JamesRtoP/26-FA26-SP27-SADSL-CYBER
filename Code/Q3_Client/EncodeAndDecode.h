@@ -42,18 +42,18 @@ namespace
         const std::string name(keyAlgorithmName);
 
         if (encoded.empty())
-            throw DecodeError("decode " + name + ": encoded key is empty");
+            throw std::runtime_error("decode " + name + ": encoded key is empty");
         if (encoded[0] != static_cast<std::uint8_t>(expected))
-            throw DecodeError("decode " + name + ": unrecognised key type byte "
+            throw std::runtime_error("decode " + name + ": unrecognised key type byte "
                               + std::to_string(encoded[0]));
         if (encoded.size() != N + 1)
-            throw DecodeError("decode " + name + ": expected " + std::to_string(N + 1)
+            throw std::runtime_error("decode " + name + ": expected " + std::to_string(N + 1)
                               + " bytes, got " + std::to_string(encoded.size()));
 
         EVP_PKEY* key(
             EVP_PKEY_new_raw_public_key_ex(nullptr, keyAlgorithmName, nullptr, encoded.data() + 1, N));
         if (!key)
-            throw DecodeError("decode " + name + ": OpenSSL rejected the key");
+            throw std::runtime_error("decode " + name + ": OpenSSL rejected the key");
         return key;
     }
 }
@@ -82,17 +82,17 @@ namespace Q3Crypto
 
     inline EVP_PKEY* decodeEC(std::span<const std::uint8_t> encoded)
     {
-        return detail::decodeWithPrefix<kX25519PublicKeySize>(KeyType::X25519, encoded, "X25519");
+        return decodeWithPrefix<kX25519PublicKeySize>(KeyType::X25519, encoded, "X25519");
     }
 
     inline EVP_PKEY* decodeSigningKey(std::span<const std::uint8_t> encoded)
     {
-        return detail::decodeWithPrefix<kEd25519PublicKeySize>(KeyType::Ed25519, encoded, "ED25519");
+        return decodeWithPrefix<kEd25519PublicKeySize>(KeyType::Ed25519, encoded, "ED25519");
     }
 
     inline EVP_PKEY* decodeKEM(std::span<const std::uint8_t> encoded)
     {
-        return detail::decodeWithPrefix<kMLKEM1024PublicKeySize>(KeyType::MLKEM1024, encoded, "ML-KEM-1024");
+        return decodeWithPrefix<kMLKEM1024PublicKeySize>(KeyType::MLKEM1024, encoded, "ML-KEM-1024");
     }
 
 }

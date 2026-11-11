@@ -1,5 +1,6 @@
 #include "cryptography_primatives.h"
 
+#include "EncodeAndDecode.h"
 #include <stdexcept>
 #include <openssl/evp.h>
 #include <openssl/core_names.h>
@@ -167,7 +168,7 @@ namespace Q3Crypto
         return key;
     }
 
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::vector<uint8_t>& plaintext)
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::span<const std::uint8_t>& plaintext)
     {
         EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
@@ -535,4 +536,46 @@ namespace Q3Crypto
         IDKey.X25519_key = generateX25519Key();
         return IDKey;
     }
+
+    std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key)
+    {
+        if(!key){throw std::invalid_argument("Key is null");}
+
+        size_t publicKeyLength = 0;
+        bool success = EVP_PKEY_get_octet_string_param(key, OSSL_PKEY_PARAM_PUB_KEY, nullptr, 0, &publicKeyLength) == 1;
+        if(!success){throw std::runtime_error("Failed to get Public Key Length");}
+
+        if(publicKeyLength == 0){throw std::runtime_error("Public Key is Empty");}
+
+        std::vector<uint8_t> publicKey(publicKeyLength);
+
+        success = EVP_PKEY_get_octet_string_param(key, OSSL_PKEY_PARAM_PUB_KEY, publicKey.data(), publicKey.size(), &publicKeyLength) == 1;
+        if(!success){throw std::runtime_error("Failed to get Public Key");}
+
+        if(publicKeyLength != publicKey.size())
+        {
+            throw std::runtime_error("Unexpected Public Key Length");
+        }
+
+        return publicKey;
+    }
+
+    prekeyWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey )
+    {
+        prekeyWithIdentifierSigned returnMe;
+        returnMe.key = getPublicKeyBytes(prekey.key);
+        returnMe.identifier = prekey.identifier;
+        returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeKEM(prekey.key));
+        return returnMe;
+    }
+
+    prekeyWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey )
+    {
+        prekeyWithIdentifierSigned returnMe;
+        returnMe.key = getPublicKeyBytes(prekey.key);
+        returnMe.identifier = prekey.identifier;
+        returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeEC(prekey.key));
+        return returnMe;
+    }
+
 }
