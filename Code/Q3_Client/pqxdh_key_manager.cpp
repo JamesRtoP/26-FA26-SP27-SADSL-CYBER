@@ -1,6 +1,6 @@
 #include "pqxdh_key_manager.h"
 
-std::vector<uint8_t> get_public_bytes(EVP_PKEY* pkey) {
+std::vector<uint8_t> get_public_key_bytes(EVP_PKEY* pkey) {
     size_t len = 0;
 
     // 1. Try the raw method first (curve)

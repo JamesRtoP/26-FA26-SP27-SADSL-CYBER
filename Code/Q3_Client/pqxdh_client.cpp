@@ -23,7 +23,7 @@ bool PQXDH_Client::verify_signature(EVP_PKEY* ik_b, const std::vector<uint8_t>& 
     EVP_MD_CTX_free(mctx);
     return success;
 }
-
+/*
 InitialMessage PQXDH_Client::send_initial_message(const PublicKeyBundle& bundle, const std::vector<uint8_t>& plaintext_message, std::vector<uint8_t>& out_shared_secret)
 {
     EVP_PKEY* ik_b = raw_bytes_to_x25519_public(bundle.curveIdentityKey);
@@ -71,4 +71,4 @@ InitialMessage PQXDH_Client::send_initial_message(const PublicKeyBundle& bundle,
 
 
 }
-
+*/

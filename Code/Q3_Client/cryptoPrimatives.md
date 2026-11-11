@@ -1,6 +1,6 @@
-- [ ] curve25519 Wrapper
-- [ ] X25519 Wrapper (Elliptic-Curve Diffie-Hellman (ECDH) key agreement protocol) DH(PK1, PK2)
-- [ ] Ed25519 Wrapper (Edwards-curve Digital Signature Algorithm (EdDSA)) (Replacing XEdDSA) Sig(PK, M, Z)
+- [X] curve25519 Wrapper
+- [X] X25519 Wrapper (Elliptic-Curve Diffie-Hellman (ECDH) key agreement protocol) DH(PK1, PK2)
+- [X] Ed25519 Wrapper (Edwards-curve Digital Signature Algorithm (EdDSA)) (Replacing XEdDSA) Sig(PK, M, Z)
 - [X] SHA 512 Wrapper
 - [ ] info string of at least 8 bytes
 - [ ] pqkem (ML-KEM)

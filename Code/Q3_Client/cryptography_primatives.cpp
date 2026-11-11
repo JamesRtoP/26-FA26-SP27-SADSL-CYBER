@@ -2,7 +2,9 @@
 
 #include <stdexcept>
 #include <openssl/evp.h>
-
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#include <openssl/kdf.h>
 namespace Q3Crypto
 {
     std::vector<uint8_t> hexToBytes(const std::string& hex)
@@ -240,6 +242,51 @@ namespace Q3Crypto
 
         //if signatureVerificationResults == 1
         return true;
+    }
+
+    SecretData<32> generateHKDFKey(const SecretData<32>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info)
+    {
+        EVP_KDF* kdfAlgorithm = EVP_KDF_fetch(nullptr, "HKDF", nullptr);
+        if(!kdfAlgorithm){throw std::runtime_error("Failed to fetch HKDF algorithm");}
+
+        EVP_KDF_CTX* context = EVP_KDF_CTX_new(kdfAlgorithm);
+        if(!context)
+        {
+            EVP_KDF_free(kdfAlgorithm);
+            throw std::runtime_error("Failed to create EVP_KDF_CTX");
+        }
+
+        char digestName[] = "SHA256";
+
+        OSSL_PARAM parameters[5];
+        size_t parameterCount = 0;
+
+        parameters[parameterCount++] = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, digestName, 0);
+        parameters[parameterCount++] = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, const_cast<uint8_t*>(sharedSecret.data()), sharedSecret.size());
+        if(!salt.empty())
+        {
+            parameters[parameterCount++] = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT, const_cast<uint8_t*>(salt.data()), salt.size());
+        }
+        if(!info.empty())
+        {
+            parameters[parameterCount++] = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO, const_cast<uint8_t*>(info.data()), info.size());
+        }
+        parameters[parameterCount] = OSSL_PARAM_construct_end();
+
+        SecretData<32> derivedKey{};
+
+        bool success = EVP_KDF_derive(context, derivedKey.data(), derivedKey.size(), parameters) == 1;
+
+        EVP_KDF_CTX_free(context);
+        EVP_KDF_free(kdfAlgorithm);
+
+        if(!success)
+        {
+            OPENSSL_cleanse(derivedKey.data(), derivedKey.size());
+            throw std::runtime_error("Failed to Derive Key with HKDF");
+        }
+
+        return derivedKey;
     }
 
 
