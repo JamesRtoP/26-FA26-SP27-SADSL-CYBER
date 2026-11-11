@@ -29,7 +29,9 @@ namespace Q3Crypto
     std::vector<curvePrekeyWithIdentifiers> generatePreKeysX25519(int count, int identiferStart);
 
     EVP_PKEY* generateEd25519Key();
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::vector<uint8_t> plaintext);
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::vector<uint8_t>& plaintext);
+    bool checkSignWithEd25519(EVP_PKEY* key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext);
+
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H

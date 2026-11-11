@@ -169,5 +169,45 @@ namespace Q3Crypto
         return signedStorage;
     }
 
+    bool checkSignWithEd25519(EVP_PKEY* key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext)
+    {
+        EVP_SIGNATURE* verifyingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
+        if (!verifyingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
+
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, key, nullptr);
+        if(!context)
+        {
+            EVP_SIGNATURE_free(verifyingAlgorithm);
+            throw std::runtime_error("Failed to create EVP_PKEY_CTX");
+        }
+
+        bool success = EVP_PKEY_verify_message_init(context, verifyingAlgorithm, nullptr) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            EVP_SIGNATURE_free(verifyingAlgorithm);
+            throw std::runtime_error("Failed to Add Algorithm to Context");
+        }
+
+        int signatureVerificationResults = EVP_PKEY_verify(context, signature.data(), signature.size(), plaintext.data(), plaintext.size());
+
+        EVP_PKEY_CTX_free(context);
+        EVP_SIGNATURE_free(verifyingAlgorithm);
+
+        if(signatureVerificationResults < 0)//error
+        {
+            throw std::runtime_error("Error during Signature Verification");
+        }
+
+
+        if(signatureVerificationResults != 1)// verification failed it'll return 0
+        {
+            return false;
+        }
+
+        //if signatureVerificationResults == 1
+        return true;
+    }
+
 
 }
