@@ -3,7 +3,7 @@
 - [X] Ed25519 Wrapper (Edwards-curve Digital Signature Algorithm (EdDSA)) (Replacing XEdDSA) Sig(PK, M, Z)
 - [X] SHA 512 Wrapper
 - [X] info string of at least 8 bytes
-- [ ] pqkem (ML-KEM)
+- [X] pqkem (ML-KEM)
 - [ ] AEAD (The PQXDH white paper says AES256 is sufficient)
 - [X] HKDF
 

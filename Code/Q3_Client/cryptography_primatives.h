@@ -29,6 +29,13 @@ namespace Q3Crypto
         SecretData<32> sharedSecret{};
     };
 
+    struct AES_256Result
+    {
+        std::array<uint8_t, 12> nonce{};
+        std::vector<uint8_t> ciphertext;
+        std::array<uint8_t, 16> tag{};
+    };
+
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
@@ -47,6 +54,7 @@ namespace Q3Crypto
     std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart);
     ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY* peerPublicKey);
     SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext);
+    AES_256Result encryptWithAES256GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData);
 
 
 }

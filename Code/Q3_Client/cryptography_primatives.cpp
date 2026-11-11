@@ -5,6 +5,8 @@
 #include <openssl/core_names.h>
 #include <openssl/params.h>
 #include <openssl/kdf.h>
+#include <openssl/rand.h>
+
 namespace Q3Crypto
 {
     std::vector<uint8_t> hexToBytes(const std::string& hex)
@@ -412,6 +414,61 @@ namespace Q3Crypto
         }
         return sharedSecret;
 
+    }
+
+    AES_256Result encryptWithAES256GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData)
+    {
+        EVP_CIPHER* cipherAlgorithm = EVP_CIPHER_fetch(nullptr, "AES-256-GCM", nullptr);
+        if(!cipherAlgorithm){throw std::runtime_error("Failed to fetch AES-256-GCM algorithm");}
+
+        EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+        if(!context)
+        {
+            EVP_CIPHER_free(cipherAlgorithm);
+            throw std::runtime_error("Failed to create EVP_CIPHER_CTX");
+        }
+
+        AES_256Result result;
+        result.ciphertext.resize(plaintext.size() + EVP_MAX_BLOCK_LENGTH);
+        int writtenLength = 0;
+        int finalLength = 0;
+
+        // fill nonce with rand bytes
+        bool success = RAND_bytes(result.nonce.data(), static_cast<int>(result.nonce.size())) == 1;
+
+
+        if(success)
+        {
+            success = EVP_EncryptInit_ex2(context, cipherAlgorithm, key.data(), result.nonce.data(), nullptr) == 1;
+        }
+        if(success && !associatedData.empty()) // if need to add associated Data
+        {
+            int associatedLength = 0;
+            success = EVP_EncryptUpdate(context, nullptr, &associatedLength, associatedData.data(), static_cast<int>(associatedData.size())) == 1;
+        }
+        if(success && !plaintext.empty()) // if need to add plaintext
+        {
+            success = EVP_EncryptUpdate(context, result.ciphertext.data(), &writtenLength, plaintext.data(), static_cast<int>(plaintext.size())) == 1;
+        }
+        if(success)
+        {
+            success = EVP_EncryptFinal_ex(context, result.ciphertext.data() + writtenLength, &finalLength) == 1;
+        }
+        if(success)
+        {
+            OSSL_PARAM parameters[2];
+            parameters[0] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, result.tag.data(), result.tag.size());
+            parameters[1] = OSSL_PARAM_construct_end();
+            success = EVP_CIPHER_CTX_get_params(context, parameters) == 1;
+        }
+
+        EVP_CIPHER_CTX_free(context);
+        EVP_CIPHER_free(cipherAlgorithm);
+
+        if(!success){throw std::runtime_error("Failed to Encrypt with AES-256-GCM");}
+        result.ciphertext.resize(writtenLength + finalLength);
+
+        return result;
     }
 
 
