@@ -110,6 +110,39 @@ namespace Q3Crypto
         return list;
     }
 
+    SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey)
+    {
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey, nullptr);
+        if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
+
+        bool success = EVP_PKEY_derive_init(context) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            throw std::runtime_error("Failed to Initialize Context for Derivation");
+        }
+
+        success = EVP_PKEY_derive_set_peer_ex(context, peerPublicKey, 1) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            throw std::runtime_error("Failed to Add Peer Public Key to Context");
+        }
+
+        SecretData<32> sharedSecret;
+        size_t secretLength = sharedSecret.size();
+
+        success = EVP_PKEY_derive(context, sharedSecret.data(), &secretLength) == 1;
+        EVP_PKEY_CTX_free(context);
+        if(!success)
+        {
+            OPENSSL_cleanse(sharedSecret.data(), sharedSecret.size());
+            throw std::runtime_error("Failed to Derive Shared Secret");
+        }
+
+        return sharedSecret;
+    }
+
 
     EVP_PKEY* generateEd25519Key()
     {
