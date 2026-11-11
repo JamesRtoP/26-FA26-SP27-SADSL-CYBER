@@ -289,5 +289,13 @@ namespace Q3Crypto
         return derivedKey;
     }
 
+    SecretData<32> generateHKDFKey(const SecretData<32>& sharedSecret)
+    {
+        std::vector<uint8_t> salt(64,0);
+        std::string infoString = "Q3Protocol_CURVE25519_SHA-512_CRYSTALS-KYBER-1024";
+        std::vector<uint8_t> info(infoString.begin(), infoString.end());
+        return generateHKDFKey(sharedSecret, salt, info);
+    }
+
 
 }
