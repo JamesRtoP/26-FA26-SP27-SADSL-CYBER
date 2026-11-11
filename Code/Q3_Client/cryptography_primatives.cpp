@@ -416,7 +416,7 @@ namespace Q3Crypto
 
     }
 
-    AES_256Result encryptWithAES256GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData)
+    AES_256Result encryptWithAES_256_GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData)
     {
         EVP_CIPHER* cipherAlgorithm = EVP_CIPHER_fetch(nullptr, "AES-256-GCM", nullptr);
         if(!cipherAlgorithm){throw std::runtime_error("Failed to fetch AES-256-GCM algorithm");}
@@ -471,5 +471,60 @@ namespace Q3Crypto
         return result;
     }
 
+    std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData)
+    {
+        EVP_CIPHER* cipherAlgorithm = EVP_CIPHER_fetch(nullptr, "AES-256-GCM", nullptr);
+        if(!cipherAlgorithm){throw std::runtime_error("Failed to fetch AES-256-GCM algorithm");}
 
+        EVP_CIPHER_CTX* context = EVP_CIPHER_CTX_new();
+        if(!context)
+        {
+            EVP_CIPHER_free(cipherAlgorithm);
+            throw std::runtime_error("Failed to create EVP_CIPHER_CTX");
+        }
+        std::vector<uint8_t> plaintext(encrypted.ciphertext.size() + EVP_MAX_BLOCK_LENGTH);
+        int writtenLength = 0;
+        int finalLength = 0;
+        bool success = EVP_DecryptInit_ex2(context, cipherAlgorithm, key.data(), encrypted.nonce.data(), nullptr) == 1;
+        if(success && !associatedData.empty())
+        {
+            int associatedLength = 0;
+            success = EVP_DecryptUpdate(context, nullptr, &associatedLength, associatedData.data(), static_cast<int>(associatedData.size())) == 1;
+        }
+        if(success && !encrypted.ciphertext.empty())
+        {
+            success = EVP_DecryptUpdate(context, plaintext.data(), &writtenLength, encrypted.ciphertext.data(), static_cast<int>(encrypted.ciphertext.size())) == 1;
+        }
+        if(success)
+        {
+            OSSL_PARAM parameters[2];
+            parameters[0] = OSSL_PARAM_construct_octet_string(OSSL_CIPHER_PARAM_AEAD_TAG, const_cast<uint8_t*>(encrypted.tag.data()), encrypted.tag.size());
+            parameters[1] = OSSL_PARAM_construct_end();
+            success = EVP_CIPHER_CTX_set_params(context, parameters) == 1;
+        }
+
+        bool authenticated = false;
+        if(success)
+        {
+            authenticated = EVP_DecryptFinal_ex(context, plaintext.data() + writtenLength, &finalLength) == 1;
+        }
+
+        EVP_CIPHER_CTX_free(context);
+        EVP_CIPHER_free(cipherAlgorithm);
+
+        if(!success)
+        {
+            OPENSSL_cleanse(plaintext.data(), plaintext.size());
+            throw std::runtime_error("Failed to Decrypt with AES-256-GCM");
+        }
+
+        if(!authenticated)
+        {
+            OPENSSL_cleanse(plaintext.data(), plaintext.size());
+            throw std::runtime_error("Authentication Failed: key, nonce, tag, ciphertext or associated data does not match");
+        }
+
+        plaintext.resize(writtenLength + finalLength);
+        return plaintext;
+    }
 }
