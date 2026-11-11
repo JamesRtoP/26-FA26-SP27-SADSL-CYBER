@@ -80,6 +80,21 @@ namespace Q3Crypto
         return encodeWithPrefix<kMLKEM1024PublicKeySize>(KeyType::MLKEM1024, key, "ML-KEM-1024");
     }
 
+    inline EVP_PKEY* decodeEC(std::span<const std::uint8_t> encoded)
+    {
+        return detail::decodeWithPrefix<kX25519PublicKeySize>(KeyType::X25519, encoded, "X25519");
+    }
+
+    inline EVP_PKEY* decodeSigningKey(std::span<const std::uint8_t> encoded)
+    {
+        return detail::decodeWithPrefix<kEd25519PublicKeySize>(KeyType::Ed25519, encoded, "ED25519");
+    }
+
+    inline EVP_PKEY* decodeKEM(std::span<const std::uint8_t> encoded)
+    {
+        return detail::decodeWithPrefix<kMLKEM1024PublicKeySize>(KeyType::MLKEM1024, encoded, "ML-KEM-1024");
+    }
+
 }
 
 #endif // ENCODEANDDECODE_H
