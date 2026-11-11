@@ -360,7 +360,7 @@ namespace Q3Crypto
         return list;
     }
 
-    ML_KEM_1024Result encapsulateWithMLKEM(EVP_PKEY* peerPublicKey)
+    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY* peerPublicKey)
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, peerPublicKey, nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
@@ -389,7 +389,7 @@ namespace Q3Crypto
         return result;
     }
 
-    SecretData <32> decapsulateWithMLKEM(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext)
+    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext)
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey, nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}

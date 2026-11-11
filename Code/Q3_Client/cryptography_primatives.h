@@ -23,6 +23,12 @@ namespace Q3Crypto
         EVP_PKEY* Ed25519_key;
     };
 
+    struct ML_KEM_1024Result
+    {
+        std::array<uint8_t, 1568> ciphertext;
+        SecretData<32> sharedSecret{};
+    };
+
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
@@ -39,6 +45,9 @@ namespace Q3Crypto
 
     EVP_PKEY* generateML_KEM_1024Key();
     std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart);
+    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY* peerPublicKey);
+    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext);
+
 
 }
 
