@@ -2,6 +2,7 @@
 #define CRYPTOGRAPHY_PRIMATIVES_H
 
 #include <openssl/evp.h>
+#include "SecretData.h"
 
 #include <vector>
 #include <array>
@@ -27,10 +28,16 @@ namespace Q3Crypto
 
     EVP_PKEY* generateX25519Key();
     std::vector<curvePrekeyWithIdentifiers> generatePreKeysX25519(int count, int identiferStart);
+    SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey);
 
     EVP_PKEY* generateEd25519Key();
     std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::vector<uint8_t>& plaintext);
     bool checkSignWithEd25519(EVP_PKEY* key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext);
+
+    SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info);
+    SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret);
+
+    EVP_PKEY* generateML_KEM_1024Key();
 
 }
 

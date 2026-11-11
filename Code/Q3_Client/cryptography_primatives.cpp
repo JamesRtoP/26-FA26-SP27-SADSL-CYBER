@@ -297,5 +297,30 @@ namespace Q3Crypto
         return generateHKDFKey(sharedSecret, salt, info);
     }
 
+    EVP_PKEY* generateML_KEM_1024Key()
+    {
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-768", nullptr);
+        if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
+
+        bool success = EVP_PKEY_keygen_init(context) == 1;
+        if(!success)
+        {
+            EVP_PKEY_CTX_free(context);
+            throw std::runtime_error("Failed to Initialize Context for Key Generation");
+        }
+
+        EVP_PKEY* key = nullptr;
+        success = EVP_PKEY_generate(context, &key) == 1;
+        EVP_PKEY_CTX_free(context);
+
+        if(!success)
+        {
+            EVP_PKEY_free(key);
+            throw std::runtime_error("Failed to Generate ML-KEM-768 Key");
+        }
+
+        return key;
+    }
+
 
 }
