@@ -12,6 +12,10 @@ Openssl is being used for [PQXDH](https://signal.org/docs/specifications/pqxdh/p
 The PQXDH document from Signal refers to pqkem as "A post-quantum key encapsulation mechanism that has IND-CCA post-quantum security (e.g. Crystals-Kyber-1024)". Crystals-Kyber-1024 is the fullname of ML-KEM as standardized by [FIPS 203](https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards "NIST Regulation"). 
 
 
+## Algorithms
+
+### X25519
+X25519 is an Elliptic Curve Diffie-Hellman (ECDH) key agreement algorithm utilizing curve 25519. It generates a shared key by combining a someone's public key with someone else's private key. This key is the same if you sitch who's private key is being used.
 
 ## Data Types
 

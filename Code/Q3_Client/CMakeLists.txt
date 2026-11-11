@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.16)
 project(Q3_Client VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 20)
+
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Sql)
 find_package(OpenSSL REQUIRED)
@@ -17,6 +19,7 @@ endif()
 #--Make Crytography folder into a static library--
 qt_add_library(Q3Crypto STATIC
     cryptography_primatives.h   cryptography_primatives.cpp
+    SecretData.h SecretData.cpp
 #    crytography/kdf.h    src/crypto/kdf.cpp
 )
 target_include_directories(Q3Crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
