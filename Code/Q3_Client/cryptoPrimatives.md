@@ -17,7 +17,7 @@ The PQXDH document from Signal refers to pqkem as "A post-quantum key encapsulat
 
 ### Secret Values
 Values that are intended to remain secret need their own data type. Utilizing arrays or vectors can lead to multiple copies of a secret in memory and no guarentee that the memory is overwritten after the memory is dealocated.
-This new data type should only allow moves
+This new data type should only allow moves.
 
 ### Fixed-Length Values
 
@@ -114,3 +114,12 @@ This step can be repeated with different updates or to add more messages.
     EVP_MD_CTX_free(context);
     EVP_MD_free(messageDigest);
 ```
+
+- [ ] Bob’s curve identity key IK<sub>B</sub> (This was originally one key using XEdDSA, but we will have to split it into 2 keys: one for X25519 and one for Ed25519)
+- [ ] Bob’s signed curve prekey and its identifier (SPK<sub>B</sub>, IdEC(SPK<sub>B</sub>)) (This is just an X25519 key with an int id)
+- [ ] Bob’s signature on the curve prekey Sig(IK<sub>B</sub>, EncodeEC(SPK<sub>B</sub>), Z<sub>SPK</sub>) (signed using IK<sub>B</sub>. In our case this is the Ed25519 key)
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
