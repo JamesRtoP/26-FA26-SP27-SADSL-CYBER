@@ -10,7 +10,7 @@
 
 namespace Q3Crypto
 {
-    struct curvePrekeyWithIdentifiers
+    struct prekeyWithIdentifier
     {
         EVP_PKEY* key;
         int identifier;
@@ -20,14 +20,14 @@ namespace Q3Crypto
     struct identityKey
     {
         EVP_PKEY* X25519_key;
-
+        EVP_PKEY* Ed25519_key;
     };
 
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
     EVP_PKEY* generateX25519Key();
-    std::vector<curvePrekeyWithIdentifiers> generatePreKeysX25519(int count, int identiferStart);
+    std::vector<prekeyWithIdentifier> generatePreKeysX25519(int count, int& identiferStart);
     SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey);
 
     EVP_PKEY* generateEd25519Key();
@@ -38,6 +38,7 @@ namespace Q3Crypto
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret);
 
     EVP_PKEY* generateML_KEM_1024Key();
+    std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart);
 
 }
 

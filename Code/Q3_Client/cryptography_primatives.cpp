@@ -87,9 +87,9 @@ namespace Q3Crypto
     }
 
 
-    std::vector<curvePrekeyWithIdentifiers> generatePreKeysX25519(int count, int identiferStart)
+    std::vector<prekeyWithIdentifier> generatePreKeysX25519(int count, int& identiferStart)
     {
-        std::vector<curvePrekeyWithIdentifiers> list;
+        std::vector<prekeyWithIdentifier> list;
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
         if(!context)
         {
@@ -107,7 +107,7 @@ namespace Q3Crypto
             {
                 throw std::runtime_error("Failed to Generate Key");
             }
-            list.push_back({key, i + identiferStart});
+            list.push_back({key, identiferStart++});
         }
         return list;
     }
@@ -322,5 +322,33 @@ namespace Q3Crypto
         return key;
     }
 
+    std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart)
+    {
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-768", nullptr);
+        if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
+
+        std::vector<prekeyWithIdentifier> list;
+        for(int i; i <count; i++)
+        {
+            bool success = EVP_PKEY_keygen_init(context) == 1;
+            if(!success)
+            {
+                EVP_PKEY_CTX_free(context);
+                throw std::runtime_error("Failed to Initialize Context for Key Generation");
+            }
+            EVP_PKEY* key = nullptr;
+            success = EVP_PKEY_generate(context, &key) == 1;
+            if(!success)
+            {
+                EVP_PKEY_free(key);
+                throw std::runtime_error("Failed to Generate ML-KEM-768 Key");
+            }
+            list.push_back({key, identiferStart++});
+        }
+
+        EVP_PKEY_CTX_free(context);
+
+        return list;
+    }
 
 }
