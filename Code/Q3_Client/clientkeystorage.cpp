@@ -13,11 +13,11 @@ namespace Q3Crypto
         this->lastResortpqkemKey = {generateML_KEM_1024Key(),this->nextpqkemPrekeyIdentifier++};
 
 
-        this->nextCurvePrekeysID = 10000;
-        this->curvePrekeys = generatePreKeysX25519(50, this->nextCurvePrekeysID);
+        this->nextCurveBulkPrekeysIdentifier = 10000;
+        this->curveBulkPrekeys = generatePreKeysX25519(50, this->nextCurveBulkPrekeysIdentifier);
 
-        this->nextpqkemPrekeysID = 20000;
-        this->pqkemPrekeys = generatePreKeysML_KEM_1024(50, this->nextpqkemPrekeysID = 20000);
+        this->nextpqkemBulkPrekeysIdentifier = 20000;
+        this->pqkemBulkPrekeys = generatePreKeysML_KEM_1024(50, this->nextpqkemBulkPrekeysIdentifier = 20000);
     }
 
 }

@@ -12,10 +12,10 @@ namespace Q3Crypto
         prekeyWithIdentifier curvePrekey;
         int nextpqkemPrekeyIdentifier;
         prekeyWithIdentifier lastResortpqkemKey;
-        int nextCurvePrekeysID;
-        std::vector<prekeyWithIdentifier> curvePrekeys;
-        int nextpqkemPrekeysID;
-        std::vector<prekeyWithIdentifier> pqkemPrekeys;
+        int nextCurveBulkPrekeysIdentifier;
+        std::vector<prekeyWithIdentifier> curveBulkPrekeys;
+        int nextpqkemBulkPrekeysIdentifier;
+        std::vector<prekeyWithIdentifier> pqkemBulkPrekeys;
 
     public:
         ClientKeyStorage();
