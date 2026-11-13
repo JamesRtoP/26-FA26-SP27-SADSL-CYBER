@@ -7,16 +7,9 @@
 - [X] AEAD (The PQXDH white paper says AES256 is sufficient)
 - [X] HKDF
 
-## PQXDH Peculiarities
 
 ### XEdDSA Limitations
 Openssl is being used for [PQXDH](https://signal.org/docs/specifications/pqxdh/pqxdh.pdf "PQXDH Specification") primatives. Openssl does not have an implmentation of [XEdDSA](https://signal.org/docs/specifications/xeddsa/ "XEdDSA Specification"). XEdDSA allows a single key pair to be used for either or both elliptic curve Diffie-Hellman and Signing. Instead of implementing this ourselves, we have decided to 
-
-### Defining PQKEM
-The PQXDH document from Signal refers to pqkem as "A post-quantum key encapsulation mechanism that has IND-CCA post-quantum security (e.g. Crystals-Kyber-1024)". Crystals-Kyber-1024 is the fullname of ML-KEM as standardized by [FIPS 203](https://www.nist.gov/news-events/news/2024/08/nist-releases-first-3-finalized-post-quantum-encryption-standards "NIST Regulation"). 
-
-### Encode and Decode
-
 
 ## Algorithms
 
