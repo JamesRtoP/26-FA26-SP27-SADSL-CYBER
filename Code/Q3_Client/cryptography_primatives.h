@@ -3,6 +3,7 @@
 
 #include <openssl/evp.h>
 #include "SecretData.h"
+#include "EncodeAndDecode.h"
 
 #include <vector>
 #include <array>
@@ -16,7 +17,7 @@ namespace Q3Crypto
         int identifier;
     };
 
-    struct prekeyWithIdentifierSigned
+    struct prekeyBytesWithIdentifierSigned
     {
         std::vector<uint8_t> key;
         int identifier;
@@ -28,6 +29,12 @@ namespace Q3Crypto
     {
         EVP_PKEY* X25519_key;
         EVP_PKEY* Ed25519_key;
+    };
+
+    struct identityKeyBytes
+    {
+        std::array<std::uint8_t, 1 + kX25519PublicKeySize> X25519_key;
+        std::array<std::uint8_t, 1 + kEd25519PublicKeySize> Ed25519_key;
     };
 
     struct ML_KEM_1024Result
@@ -65,9 +72,11 @@ namespace Q3Crypto
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
 
     identityKey generateIdentityKey();
+    identityKey generateIdentityKey(identityKeyBytes);
+    identityKeyBytes generateIdentityKeyBytes(identityKey);
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key);
-    prekeyWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey );
-    prekeyWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey );
+    prekeyBytesWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey );
+    prekeyBytesWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey );
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H

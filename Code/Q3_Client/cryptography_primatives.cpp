@@ -1,6 +1,5 @@
 #include "cryptography_primatives.h"
 
-#include "EncodeAndDecode.h"
 #include <stdexcept>
 #include <openssl/evp.h>
 #include <openssl/core_names.h>
@@ -537,6 +536,23 @@ namespace Q3Crypto
         return IDKey;
     }
 
+    identityKey generateIdentityKey(identityKeyBytes IDBytes)
+    {
+        identityKey IDKey;
+        IDKey.Ed25519_key = decodeSigningKey(IDBytes.Ed25519_key);
+        IDKey.X25519_key = decodeEC(IDBytes.X25519_key);
+        return IDKey;
+    }
+
+
+    identityKeyBytes generateIdentityKeyBytes(identityKey idKey)
+    {
+        identityKeyBytes returnMe;
+        returnMe.Ed25519_key = encodeSigningKey(idKey.Ed25519_key);
+        returnMe.X25519_key = encodeEC(idKey.Ed25519_key);
+        return returnMe;
+    }
+
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key)
     {
         if(!key){throw std::invalid_argument("Key is null");}
@@ -560,18 +576,18 @@ namespace Q3Crypto
         return publicKey;
     }
 
-    prekeyWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey )
+    prekeyBytesWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey )
     {
-        prekeyWithIdentifierSigned returnMe;
+        prekeyBytesWithIdentifierSigned returnMe;
         returnMe.key = getPublicKeyBytes(prekey.key);
         returnMe.identifier = prekey.identifier;
         returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeKEM(prekey.key));
         return returnMe;
     }
 
-    prekeyWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey )
+    prekeyBytesWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey )
     {
-        prekeyWithIdentifierSigned returnMe;
+        prekeyBytesWithIdentifierSigned returnMe;
         returnMe.key = getPublicKeyBytes(prekey.key);
         returnMe.identifier = prekey.identifier;
         returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeEC(prekey.key));
