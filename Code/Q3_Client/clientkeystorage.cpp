@@ -1,4 +1,5 @@
 #include "clientkeystorage.h"
+#include "sharedKeyBytesStorage.h"
 
 namespace Q3Crypto
 {
@@ -19,5 +20,17 @@ namespace Q3Crypto
         this->nextpqkemBulkPrekeysIdentifier = 20000;
         this->pqkemBulkPrekeys = generatePreKeysML_KEM_1024(50, this->nextpqkemBulkPrekeysIdentifier = 20000);
     }
+
+    SharedKeyBytesStorage getKeyBytes()
+    {
+        identityKeyBytes IDKeyBytes;
+        prekeyBytesWithIdentifierSigned new_curvePrekey;
+        prekeyBytesWithIdentifierSigned new_lastResortpqkemKey;
+        std::vector<prekeyBytesWithIdentifierSigned> new_curveBulkPrekeys;
+        std::vector<prekeyBytesWithIdentifierSigned> new_pqkemBulkPrekeys;
+        SharedKeyBytesStorage sharedBytes();
+
+    }
+
 
 }

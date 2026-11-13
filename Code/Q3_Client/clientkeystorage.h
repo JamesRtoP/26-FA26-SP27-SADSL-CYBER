@@ -2,6 +2,7 @@
 #define CLIENTKEYSTORAGE_H
 
 #include "cryptography_primatives.h"
+#include "sharedKeyBytesStorage.h"
 namespace Q3Crypto
 {
     class ClientKeyStorage
@@ -19,6 +20,7 @@ namespace Q3Crypto
 
     public:
         ClientKeyStorage();
+        SharedKeyBytesStorage getKeyBytes();
     };
 }
 #endif // CLIENTKEYSTORAGE_H
