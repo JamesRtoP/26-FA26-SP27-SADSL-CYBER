@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <memory>
 
 namespace Q3Crypto
 {
@@ -50,6 +51,14 @@ namespace Q3Crypto
         std::array<uint8_t, 16> tag{};
     };
 
+    // Seperate
+    struct EVP_PKEYDeleterML_KEM_1024 {
+        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
+    };
+
+    using EVP_PKEY_ML_KEM_1024 = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterML_KEM_1024>;
+
+
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
@@ -75,8 +84,14 @@ namespace Q3Crypto
     identityKey generateIdentityKey(identityKeyBytes);
     identityKeyBytes generateIdentityKeyBytes(identityKey);
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key);
+
     prekeyBytesWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey );
     prekeyBytesWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey );
+
+    std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifier>);
+    std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifier>);
+
+
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H
