@@ -210,7 +210,7 @@ namespace Q3Crypto
         return signedStorage;
     }
 
-    bool checkSignWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext)
+    bool checkSignWithEd25519(const EVP_PKEY_Ed25519_ptr& key, const std::array<uint8_t,64> signature, const std::span<const std::uint8_t>& plaintext)
     {
         EVP_SIGNATURE* verifyingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!verifyingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}

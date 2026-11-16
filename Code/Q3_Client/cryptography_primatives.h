@@ -91,7 +91,7 @@ namespace Q3Crypto
 
     EVP_PKEY_Ed25519_ptr generateEd25519Key();
     std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr& key, const std::span<const std::uint8_t>& plaintext);
-    bool checkSignWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext);
+    bool checkSignWithEd25519(const EVP_PKEY_Ed25519_ptr& key, const std::array<uint8_t,64> signature, const std::span<const std::uint8_t>& plaintext);
 
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info);
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret);
