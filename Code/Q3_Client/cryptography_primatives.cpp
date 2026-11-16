@@ -69,7 +69,7 @@ namespace Q3Crypto
         return hash;
     }
 
-    EVP_PKEY* generateX25519Key()
+    EVP_PKEY_X25519_ptr generateX25519Key()
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
         if(!context)
@@ -85,13 +85,15 @@ namespace Q3Crypto
         {
             throw std::runtime_error("Failed to Generate Key");
         }
-        return key;
+
+        EVP_PKEY_X25519_ptr returnMe(key);
+        return returnMe;
     }
 
 
-    std::vector<prekeyWithIdentifier> generatePreKeysX25519(int count, int& identiferStart)
+    std::vector<EVP_PKEY_X25519_ptr> generatePreKeysX25519(int count, int& identiferStart)
     {
-        std::vector<prekeyWithIdentifier> list;
+        std::vector<EVP_PKEY_X25519_ptr> list;
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
         if(!context)
         {
@@ -109,14 +111,15 @@ namespace Q3Crypto
             {
                 throw std::runtime_error("Failed to Generate Key");
             }
-            list.push_back({key, identiferStart++});
+            EVP_PKEY_X25519_ptr pushMe(key);
+            list.push_back({std::move(pushMe), identiferStart++});
         }
         return list;
     }
 
-    SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey)
+    SecretData<32> generateX25519SharedSecret(EVP_PKEY_X25519_ptr peerPublicKey, EVP_PKEY_X25519_ptr privateKey)
     {
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey, nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey.get(), nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
         bool success = EVP_PKEY_derive_init(context) == 1;
@@ -126,7 +129,7 @@ namespace Q3Crypto
             throw std::runtime_error("Failed to Initialize Context for Derivation");
         }
 
-        success = EVP_PKEY_derive_set_peer_ex(context, peerPublicKey, 1) == 1;
+        success = EVP_PKEY_derive_set_peer_ex(context, peerPublicKey.get(), 1) == 1;
         if(!success)
         {
             EVP_PKEY_CTX_free(context);
@@ -300,7 +303,7 @@ namespace Q3Crypto
         return generateHKDFKey(sharedSecret, salt, info);
     }
 
-    EVP_PKEY* generateML_KEM_1024Key()
+    EVP_PKEY_ML_KEM_1024_ptr generateML_KEM_1024Key()
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-1024", nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
@@ -321,16 +324,16 @@ namespace Q3Crypto
             EVP_PKEY_free(key);
             throw std::runtime_error("Failed to Generate ML-KEM-1024 Key");
         }
-
-        return key;
+        EVP_PKEY_ML_KEM_1024_ptr returnMe(key);
+        return returnMe;
     }
 
-    std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart)
+    std::vector<prekeyWithIdentifierML_KEM_1024> generatePreKeysML_KEM_1024(int count, int& identiferStart)
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_name(nullptr, "ML-KEM-1024", nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
-        std::vector<prekeyWithIdentifier> list;
+        std::vector<prekeyWithIdentifierML_KEM_1024> list;
         for(int i = 0; i <count; i++)
         {
             bool success = EVP_PKEY_keygen_init(context) == 1;
@@ -339,7 +342,7 @@ namespace Q3Crypto
                 EVP_PKEY_CTX_free(context);
                 for(int j = 0; j < list.size(); j++)
                 {
-                    EVP_PKEY_free(list[j].key);
+                    EVP_PKEY_free(list[j].key.release());
                 }
                 throw std::runtime_error("Failed to Initialize Context for Key Generation");
             }
@@ -351,7 +354,7 @@ namespace Q3Crypto
                 EVP_PKEY_CTX_free(context);
                 for(int j = 0; j < list.size(); j++)
                 {
-                    EVP_PKEY_free(list[j].key);
+                    EVP_PKEY_free(list[j].key.release());
                 }
                 throw std::runtime_error("Failed to Generate ML-KEM-1024 Key");
             }
@@ -363,9 +366,9 @@ namespace Q3Crypto
         return list;
     }
 
-    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY* peerPublicKey)
+    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr peerPublicKey)
     {
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, peerPublicKey, nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, peerPublicKey.get(), nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
         bool success = EVP_PKEY_encapsulate_init(context, nullptr) == 1;
@@ -392,9 +395,9 @@ namespace Q3Crypto
         return result;
     }
 
-    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext)
+    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr privateKey, const std::array<uint8_t, 1568>& ciphertext)
     {
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey, nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, privateKey.get(), nullptr);
         if(!context){throw std::runtime_error("Failed to create EVP_PKEY_CTX");}
 
         bool success = EVP_PKEY_decapsulate_init(context, nullptr) == 1;
@@ -594,5 +597,114 @@ namespace Q3Crypto
         returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeEC(prekey.key));
         return returnMe;
     }
+
+
+    std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodeX25519(const EVP_PKEY_X25519_ptr& key)
+    {
+        if (key == nullptr)
+            throw std::invalid_argument("encode: null X25519 key");
+        if (!EVP_PKEY_is_a(key.get(), "X25519"))
+            throw std::invalid_argument("encode: key is not X25519");
+
+        std::array<std::uint8_t, PublicKeySizeX25519 + 1> encoded;
+        encoded.data()[0] = 0;
+
+        std::size_t length = PublicKeySizeX25519;
+        if (EVP_PKEY_get_raw_public_key(key.get(), encoded.data() + 1, &length) != 1 || length != PublicKeySizeX25519)
+            throw std::runtime_error("encode: failed to export X25519 public key");
+        return encoded;
+    }
+
+    std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encodeEd25519(const EVP_PKEY_Ed25519_ptr& key)
+    {
+        if (key == nullptr)
+            throw std::invalid_argument("encode: null ED25519 key");
+        if (!EVP_PKEY_is_a(key.get(), "ED25519"))
+            throw std::invalid_argument("encode: key is not ED25519");
+
+        std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encoded;
+        encoded.data()[0] = 127;
+
+        std::size_t length = PublicKeySizeEd25519;
+        if (EVP_PKEY_get_raw_public_key(key.get(), encoded.data() + 1, &length) != 1 || length != PublicKeySizeEd25519)
+            throw std::runtime_error("encode: failed to export ED25519 public key");
+        return encoded;
+    }
+
+    std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encodeML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key)
+    {
+        if (key == nullptr)
+            throw std::invalid_argument("encode: null ML-KEM-1024 key");
+        if (!EVP_PKEY_is_a(key.get(), "ML-KEM-1024"))
+            throw std::invalid_argument("encode: key is not ML-KEM-1024");
+
+        std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encoded;
+        encoded.data()[0] = 255;
+
+        std::size_t length = PublicKeySizeML_KEM_1024;
+        if (EVP_PKEY_get_raw_public_key(key.get(), encoded.data() + 1, &length) != 1 || length != PublicKeySizeML_KEM_1024)
+            throw std::runtime_error("encode: failed to export ML-KEM-1024 public key");
+        return encoded;
+    }
+
+    EVP_PKEY_X25519_ptr decodeX25519(std::array<std::uint8_t, PublicKeySizeX25519 + 1> encoded)
+    {
+        if (encoded.empty())
+            throw std::runtime_error("decode X25519: encoded key is empty");
+        if (encoded[0] != 0)
+            throw std::runtime_error("decode X25519: unrecognised key type byte "
+                                     + std::to_string(encoded[0]));
+        if (encoded.size() != PublicKeySizeX25519 + 1)
+            throw std::runtime_error("decode X25519: expected " + std::to_string(PublicKeySizeX25519 + 1)
+                                     + " bytes, got " + std::to_string(encoded.size()));
+
+        EVP_PKEY* key(
+            EVP_PKEY_new_raw_public_key_ex(nullptr, "X25519", nullptr, encoded.data() + 1, PublicKeySizeX25519));
+        if (!key)
+            throw std::runtime_error("decode X25519: OpenSSL rejected the key");
+        EVP_PKEY_X25519_ptr returnMe(key);
+        return returnMe;
+    }
+
+    EVP_PKEY_Ed25519_ptr decodeEd25519(std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encoded)
+    {
+
+        if (encoded.empty())
+            throw std::runtime_error("decode ED25519: encoded key is empty");
+        if (encoded[0] != 0)
+            throw std::runtime_error("decode ED25519: unrecognised key type byte "
+                                     + std::to_string(encoded[0]));
+        if (encoded.size() != PublicKeySizeEd25519 + 1)
+            throw std::runtime_error("decode ED25519: expected " + std::to_string(PublicKeySizeEd25519 + 1)
+                                     + " bytes, got " + std::to_string(encoded.size()));
+
+        EVP_PKEY* key(
+            EVP_PKEY_new_raw_public_key_ex(nullptr, "ED25519", nullptr, encoded.data() + 1, PublicKeySizeEd25519));
+        if (!key)
+            throw std::runtime_error("decode ED25519: OpenSSL rejected the key");
+        EVP_PKEY_Ed25519_ptr returnMe(key);
+        return returnMe;
+    }
+
+    EVP_PKEY_ML_KEM_1024_ptr decodeML_KEM_1024(std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encoded)
+    {
+
+        if (encoded.empty())
+            throw std::runtime_error("decode ML-KEM-1024: encoded key is empty");
+        if (encoded[0] != 0)
+            throw std::runtime_error("decode ML-KEM-1024: unrecognised key type byte "
+                                     + std::to_string(encoded[0]));
+        if (encoded.size() != PublicKeySizeML_KEM_1024 + 1)
+            throw std::runtime_error("decode ML-KEM-1024: expected " + std::to_string(PublicKeySizeML_KEM_1024 + 1)
+                                     + " bytes, got " + std::to_string(encoded.size()));
+
+        EVP_PKEY* key(
+            EVP_PKEY_new_raw_public_key_ex(nullptr, "ML-KEM-1024", nullptr, encoded.data() + 1, PublicKeySizeML_KEM_1024));
+        if (!key)
+            throw std::runtime_error("decode ML-KEM-1024: OpenSSL rejected the key");
+        EVP_PKEY_ML_KEM_1024_ptr returnMe(key);
+        return returnMe;
+    }
+
 
 }

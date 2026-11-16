@@ -12,9 +12,34 @@
 
 namespace Q3Crypto
 {
-    struct prekeyWithIdentifier
+
+    struct EVP_PKEYDeleterX25519 {
+        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
+    };
+
+    struct EVP_PKEYDeleterML_KEM_1024 {
+        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
+    };
+
+    struct EVP_PKEYDeleterEd25519 {
+        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
+    };
+
+    using EVP_PKEY_X25519_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterX25519>;
+
+    using EVP_PKEY_ML_KEM_1024_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterML_KEM_1024>;
+
+    using EVP_PKEY_Ed25519_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterEd25519>;
+
+    struct prekeyWithIdentifierX25519
     {
-        EVP_PKEY* key;
+        EVP_PKEY_X25519_ptr key;
+        int identifier;
+    };
+
+    struct prekeyWithIdentifierML_KEM_1024
+    {
+        EVP_PKEY_ML_KEM_1024_ptr key;
         int identifier;
     };
 
@@ -51,31 +76,14 @@ namespace Q3Crypto
         std::array<uint8_t, 16> tag{};
     };
 
-    // Seperate
-    struct EVP_PKEYDeleterX25519 {
-        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
-    };
 
-    struct EVP_PKEYDeleterML_KEM_1024 {
-        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
-    };
-
-    struct EVP_PKEYDeleterEd25519 {
-        void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
-    };
-
-    using EVP_PKEY_X25519_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterX25519>;
-
-    using EVP_PKEY_ML_KEM_1024_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterML_KEM_1024>;
-
-    using EVP_PKEY_Ed25519_ptr = std::unique_ptr<EVP_PKEY, EVP_PKEYDeleterEd25519>;
 
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
-    EVP_PKEY* generateX25519Key();
-    std::vector<prekeyWithIdentifier> generatePreKeysX25519(int count, int& identiferStart);
-    SecretData<32> generateX25519SharedSecret(EVP_PKEY* peerPublicKey, EVP_PKEY* privateKey);
+    EVP_PKEY_X25519_ptr generateX25519Key();
+    std::vector<EVP_PKEY_X25519_ptr> generatePreKeysX25519(int count, int& identiferStart);
+    SecretData<32> generateX25519SharedSecret(EVP_PKEY_X25519_ptr peerPublicKey, EVP_PKEY_X25519_ptr privateKey);
 
     EVP_PKEY_Ed25519_ptr generateEd25519Key();
     std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::span<const std::uint8_t>& plaintext);
@@ -84,10 +92,11 @@ namespace Q3Crypto
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info);
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret);
 
-    EVP_PKEY* generateML_KEM_1024Key();
-    std::vector<prekeyWithIdentifier> generatePreKeysML_KEM_1024(int count, int& identiferStart);
-    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY* peerPublicKey);
-    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY* privateKey, const std::array<uint8_t, 1568>& ciphertext);
+    EVP_PKEY_ML_KEM_1024_ptr generateML_KEM_1024Key();
+    std::vector<prekeyWithIdentifierML_KEM_1024> generatePreKeysML_KEM_1024(int count, int& identiferStart);
+    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr peerPublicKey);
+    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr privateKey, const std::array<uint8_t, 1568>& ciphertext);
+
     AES_256Result encryptWithAES_256_GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData);
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
 
