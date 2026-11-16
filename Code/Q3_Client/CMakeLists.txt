@@ -20,9 +20,10 @@ endif()
 qt_add_library(Q3Crypto STATIC
     cryptography_primatives.h   cryptography_primatives.cpp
     SecretData.h SecretData.cpp
-    EncodeAndDecode.h
+
     clientkeystorage.h clientkeystorage.cpp
     sharedKeyBytesStorage.h sharedKeyBytesStorage.cpp
+    identitykeypair.h identitykeypair.cpp
 #    crytography/kdf.h    src/crypto/kdf.cpp
 )
 target_include_directories(Q3Crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

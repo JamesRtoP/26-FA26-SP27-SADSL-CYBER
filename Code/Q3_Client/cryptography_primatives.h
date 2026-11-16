@@ -47,14 +47,21 @@ namespace Q3Crypto
         int identifier;
     };
 
-    struct prekeyBytesWithIdentifierSigned
+    struct prekeyBytesWithIdentifierSignedX25519
     {
-        std::vector<uint8_t> key;
+        std::array<std::uint8_t, 1 + PublicKeySizeX25519> key;
         int identifier;
         std::array<uint8_t, 64> signature;
     };
 
-    struct identityKeyBytes
+    struct prekeyBytesWithIdentifierSignedML_KEM_1024
+    {
+        std::array<std::uint8_t, 1 + PublicKeySizeML_KEM_1024> key;
+        int identifier;
+        std::array<uint8_t, 64> signature;
+    };
+
+    struct identityKeyPairBytes
     {
         std::array<std::uint8_t, 1 + PublicKeySizeX25519> X25519_key;
         std::array<std::uint8_t, 1 + PublicKeySizeEd25519> Ed25519_key;
@@ -83,7 +90,7 @@ namespace Q3Crypto
     SecretData<32> generateX25519SharedSecret(EVP_PKEY_X25519_ptr peerPublicKey, EVP_PKEY_X25519_ptr privateKey);
 
     EVP_PKEY_Ed25519_ptr generateEd25519Key();
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::span<const std::uint8_t>& plaintext);
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr& key, const std::span<const std::uint8_t>& plaintext);
     bool checkSignWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext);
 
     SecretData<32> generateHKDFKey(const std::span<const std::uint8_t>& sharedSecret, const std::vector<uint8_t>& salt, const std::vector<uint8_t>& info);
@@ -97,16 +104,7 @@ namespace Q3Crypto
     AES_256Result encryptWithAES_256_GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData);
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
 
-    identityKey generateIdentityKey();
-    identityKey generateIdentityKey(identityKeyBytes);
-    identityKeyBytes generateIdentityKeyBytes(identityKey);
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key);
-
-    prekeyBytesWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey );
-    prekeyBytesWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey );
-
-    std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifier>);
-    std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifier>);
 
     std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodeX25519(const EVP_PKEY_X25519_ptr& key);
     std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encodeEd25519(const EVP_PKEY_Ed25519_ptr& key);

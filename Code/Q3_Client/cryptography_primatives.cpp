@@ -171,7 +171,7 @@ namespace Q3Crypto
         return returnMe;
     }
 
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::span<const std::uint8_t>& plaintext)
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr& key, const std::span<const std::uint8_t>& plaintext)
     {
         EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
@@ -533,31 +533,6 @@ namespace Q3Crypto
         return plaintext;
     }
 
-    identityKey generateIdentityKey()
-    {
-        identityKey IDKey;
-        IDKey.Ed25519_key = generateEd25519Key();
-        IDKey.X25519_key = generateX25519Key();
-        return IDKey;
-    }
-
-    identityKey generateIdentityKey(identityKeyBytes IDBytes)
-    {
-        identityKey IDKey;
-        IDKey.Ed25519_key = decodeSigningKey(IDBytes.Ed25519_key);
-        IDKey.X25519_key = decodeEC(IDBytes.X25519_key);
-        return IDKey;
-    }
-
-
-    identityKeyBytes generateIdentityKeyBytes(identityKey idKey)
-    {
-        identityKeyBytes returnMe;
-        returnMe.Ed25519_key = encodeSigningKey(idKey.Ed25519_key);
-        returnMe.X25519_key = encodeEC(idKey.Ed25519_key);
-        return returnMe;
-    }
-
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key)
     {
         if(!key){throw std::invalid_argument("Key is null");}
@@ -580,25 +555,6 @@ namespace Q3Crypto
 
         return publicKey;
     }
-
-    prekeyBytesWithIdentifierSigned signPublicPrekeyML_KEM_1024(identityKey IK, prekeyWithIdentifier prekey )
-    {
-        prekeyBytesWithIdentifierSigned returnMe;
-        returnMe.key = getPublicKeyBytes(prekey.key);
-        returnMe.identifier = prekey.identifier;
-        returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeKEM(prekey.key));
-        return returnMe;
-    }
-
-    prekeyBytesWithIdentifierSigned signPublicPrekeyX25519(identityKey IK, prekeyWithIdentifier prekey )
-    {
-        prekeyBytesWithIdentifierSigned returnMe;
-        returnMe.key = getPublicKeyBytes(prekey.key);
-        returnMe.identifier = prekey.identifier;
-        returnMe.signature = signWithEd25519(IK.Ed25519_key,encodeEC(prekey.key));
-        return returnMe;
-    }
-
 
     std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodeX25519(const EVP_PKEY_X25519_ptr& key)
     {
