@@ -148,7 +148,7 @@ namespace Q3Crypto
     }
 
 
-    EVP_PKEY* generateEd25519Key()
+    EVP_PKEY_Ed25519_ptr generateEd25519Key()
     {
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
         if(!context)
@@ -164,15 +164,16 @@ namespace Q3Crypto
         {
             throw std::runtime_error("Failed to Generate Key");
         }
-        return key;
+        EVP_PKEY_Ed25519_ptr returnMe(key);
+        return returnMe;
     }
 
-    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY* key, const std::span<const std::uint8_t>& plaintext)
+    std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::span<const std::uint8_t>& plaintext)
     {
         EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
 
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, key, nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, key.get(), nullptr);
         if(!context)
         {
             EVP_SIGNATURE_free(signingAlgorithm);
@@ -206,12 +207,12 @@ namespace Q3Crypto
         return signedStorage;
     }
 
-    bool checkSignWithEd25519(EVP_PKEY* key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext)
+    bool checkSignWithEd25519(EVP_PKEY_Ed25519_ptr key, const std::array<uint8_t,64> signature, const std::vector<uint8_t>& plaintext)
     {
         EVP_SIGNATURE* verifyingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!verifyingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
 
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, key, nullptr);
+        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, key.get(), nullptr);
         if(!context)
         {
             EVP_SIGNATURE_free(verifyingAlgorithm);
