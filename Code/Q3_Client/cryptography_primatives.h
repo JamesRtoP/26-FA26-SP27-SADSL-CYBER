@@ -3,7 +3,7 @@
 
 #include <openssl/evp.h>
 #include "SecretData.h"
-#include "EncodeAndDecode.h"
+//#include "EncodeAndDecode.h"
 
 #include <vector>
 #include <array>
@@ -12,6 +12,10 @@
 
 namespace Q3Crypto
 {
+
+    inline constexpr std::size_t PublicKeySizeX25519    = 32;
+    inline constexpr std::size_t PublicKeySizeEd25519   = 32;
+    inline constexpr std::size_t PublicKeySizeML_KEM_1024 = 1568;
 
     struct EVP_PKEYDeleterX25519 {
         void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
@@ -50,17 +54,10 @@ namespace Q3Crypto
         std::array<uint8_t, 64> signature;
     };
 
-    //this is replacing XEdDSA
-    struct identityKey
-    {
-        EVP_PKEY* X25519_key;
-        EVP_PKEY* Ed25519_key;
-    };
-
     struct identityKeyBytes
     {
-        std::array<std::uint8_t, 1 + kX25519PublicKeySize> X25519_key;
-        std::array<std::uint8_t, 1 + kEd25519PublicKeySize> Ed25519_key;
+        std::array<std::uint8_t, 1 + PublicKeySizeX25519> X25519_key;
+        std::array<std::uint8_t, 1 + PublicKeySizeEd25519> Ed25519_key;
     };
 
     struct ML_KEM_1024Result
@@ -82,7 +79,7 @@ namespace Q3Crypto
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
     EVP_PKEY_X25519_ptr generateX25519Key();
-    std::vector<EVP_PKEY_X25519_ptr> generatePreKeysX25519(int count, int& identiferStart);
+    std::vector<prekeyWithIdentifierX25519> generatePreKeysX25519(int count, int& identiferStart);
     SecretData<32> generateX25519SharedSecret(EVP_PKEY_X25519_ptr peerPublicKey, EVP_PKEY_X25519_ptr privateKey);
 
     EVP_PKEY_Ed25519_ptr generateEd25519Key();
@@ -111,6 +108,12 @@ namespace Q3Crypto
     std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifier>);
     std::vector<prekeyBytesWithIdentifierSigned> signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifier>);
 
+    std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodeX25519(const EVP_PKEY_X25519_ptr& key);
+    std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encodeEd25519(const EVP_PKEY_Ed25519_ptr& key);
+    std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encodeML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key);
+    EVP_PKEY_X25519_ptr decodeX25519(std::array<std::uint8_t, PublicKeySizeX25519 + 1> encoded);
+    EVP_PKEY_Ed25519_ptr decodeEd25519(std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encoded);
+    EVP_PKEY_ML_KEM_1024_ptr decodeML_KEM_1024(std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encoded);
 
 }
 

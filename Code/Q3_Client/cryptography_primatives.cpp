@@ -91,9 +91,9 @@ namespace Q3Crypto
     }
 
 
-    std::vector<EVP_PKEY_X25519_ptr> generatePreKeysX25519(int count, int& identiferStart)
+    std::vector<prekeyWithIdentifierX25519> generatePreKeysX25519(int count, int& identiferStart)
     {
-        std::vector<EVP_PKEY_X25519_ptr> list;
+        std::vector<prekeyWithIdentifierX25519> list;
         EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, NULL);
         if(!context)
         {
@@ -358,7 +358,8 @@ namespace Q3Crypto
                 }
                 throw std::runtime_error("Failed to Generate ML-KEM-1024 Key");
             }
-            list.push_back({key, identiferStart++});
+            EVP_PKEY_ML_KEM_1024_ptr pushMe(key);
+            list.push_back({std::move(pushMe), identiferStart++});
         }
 
         EVP_PKEY_CTX_free(context);
