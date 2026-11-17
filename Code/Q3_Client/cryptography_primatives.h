@@ -17,6 +17,10 @@ namespace Q3Crypto
     inline constexpr std::size_t PublicKeySizeEd25519   = 32;
     inline constexpr std::size_t PublicKeySizeML_KEM_1024 = 1568;
 
+    inline constexpr std::size_t PrivateKeySizeX25519    = 32;
+    inline constexpr std::size_t PrivateKeySizeEd25519   = 32;
+    inline constexpr std::size_t PrivateKeySizeML_KEM_1024 = 64;
+
     struct EVP_PKEYDeleterX25519 {
         void operator()(EVP_PKEY* key) const noexcept { EVP_PKEY_free(key); }
     };
@@ -41,20 +45,32 @@ namespace Q3Crypto
         int identifier;
     };
 
+    struct prekeyWithIdentifierBytesX25519
+    {
+        std::array<std::uint8_t, 1 + PublicKeySizeX25519> key;
+        int identifier;
+    };
+
     struct prekeyWithIdentifierML_KEM_1024
     {
         EVP_PKEY_ML_KEM_1024_ptr key;
         int identifier;
     };
 
-    struct prekeyBytesWithIdentifierSignedX25519
+    struct prekeyWithIdentifierBytesML_KEM_1024
+    {
+        std::array<std::uint8_t, 1 + PublicKeySizeML_KEM_1024> key;
+        int identifier;
+    };
+
+    struct prekeyWithIdentifierSignedBytesX25519
     {
         std::array<std::uint8_t, 1 + PublicKeySizeX25519> key;
         int identifier;
         std::array<uint8_t, 64> signature;
     };
 
-    struct prekeyBytesWithIdentifierSignedML_KEM_1024
+    struct prekeyWithIdentifierSignedBytesML_KEM_1024
     {
         std::array<std::uint8_t, 1 + PublicKeySizeML_KEM_1024> key;
         int identifier;
@@ -106,12 +122,18 @@ namespace Q3Crypto
 
     std::vector<uint8_t> getPublicKeyBytes(EVP_PKEY* key);
 
-    std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodeX25519(const EVP_PKEY_X25519_ptr& key);
-    std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encodeEd25519(const EVP_PKEY_Ed25519_ptr& key);
-    std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encodeML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key);
-    EVP_PKEY_X25519_ptr decodeX25519(std::array<std::uint8_t, PublicKeySizeX25519 + 1> encoded);
-    EVP_PKEY_Ed25519_ptr decodeEd25519(std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encoded);
-    EVP_PKEY_ML_KEM_1024_ptr decodeML_KEM_1024(std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encoded);
+    std::array<std::uint8_t, PublicKeySizeX25519 + 1> encodePublicX25519(const EVP_PKEY_X25519_ptr& key);
+    std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encodePublicEd25519(const EVP_PKEY_Ed25519_ptr& key);
+    std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encodePublicML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key);
+    EVP_PKEY_X25519_ptr decodePublicX25519(std::array<std::uint8_t, PublicKeySizeX25519 + 1> encoded);
+    EVP_PKEY_Ed25519_ptr decodePublicEd25519(std::array<std::uint8_t, PublicKeySizeEd25519 + 1> encoded);
+    EVP_PKEY_ML_KEM_1024_ptr decodePublicML_KEM_1024(std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> encoded);
+
+    SecretData<PrivateKeySizeX25519 + 1> encodePrivateX25519(const EVP_PKEY_X25519_ptr& key);
+    SecretData<PrivateKeySizeEd25519 + 1> encodePrivateEd25519(const EVP_PKEY_Ed25519_ptr& key);
+    SecretData<PrivateKeySizeML_KEM_1024 + 1> encodePrivateML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key);
+
+
 
 }
 
