@@ -15,10 +15,10 @@ namespace Q3Crypto
         IdentityKeyPair();
         IdentityKeyPair(identityKeyPairBytes IDBytes);
         identityKeyPairBytes getBytes();
-        prekeyBytesWithIdentifierSignedML_KEM_1024 signPublicPrekeyML_KEM_1024(prekeyWithIdentifierML_KEM_1024 keyWithID);
-        prekeyBytesWithIdentifierSignedX25519 signPublicPrekeyX25519(prekeyWithIdentifierX25519 keyWithID);
-        std::vector<prekeyBytesWithIdentifierSignedML_KEM_1024> signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifierML_KEM_1024>);
-        std::vector<prekeyBytesWithIdentifierSignedX25519> signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifierX25519>);
+        prekeyWithIdentifierSignedBytesML_KEM_1024 signPublicPrekeyML_KEM_1024(prekeyWithIdentifierML_KEM_1024 keyWithID);
+        prekeyWithIdentifierSignedBytesX25519 signPublicPrekeyX25519(prekeyWithIdentifierX25519 keyWithID);
+        std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifierML_KEM_1024>);
+        std::vector<prekeyWithIdentifierSignedBytesX25519> signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifierX25519>);
     };
 }
 #endif // IDENTITYKEYPAIR_H

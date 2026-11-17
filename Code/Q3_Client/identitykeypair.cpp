@@ -11,40 +11,40 @@ namespace Q3Crypto
 
     IdentityKeyPair::IdentityKeyPair(identityKeyPairBytes IDBytes)
     {
-        this->Ed25519Key = decodeEd25519(IDBytes.X25519_key);
-        this->X25519Key = decodeX25519(IDBytes.X25519_key);
+        this->Ed25519Key = decodePublicEd25519(IDBytes.X25519_key);
+        this->X25519Key = decodePublicX25519(IDBytes.X25519_key);
     }
 
     identityKeyPairBytes IdentityKeyPair::getBytes()
     {
         identityKeyPairBytes returnMe;
-        returnMe.Ed25519_key = encodeEd25519(this->Ed25519Key);
-        returnMe.X25519_key = encodeX25519(this->X25519Key);
+        returnMe.Ed25519_key = encodePublicEd25519(this->Ed25519Key);
+        returnMe.X25519_key = encodePublicX25519(this->X25519Key);
         return returnMe;
     }
 
-    prekeyBytesWithIdentifierSignedML_KEM_1024 IdentityKeyPair::signPublicPrekeyML_KEM_1024(prekeyWithIdentifierML_KEM_1024 keyWithID)
+    prekeyWithIdentifierSignedBytesML_KEM_1024 IdentityKeyPair::signPublicPrekeyML_KEM_1024(prekeyWithIdentifierML_KEM_1024 keyWithID)
     {
-        prekeyBytesWithIdentifierSignedML_KEM_1024 returnMe;
+        prekeyWithIdentifierSignedBytesML_KEM_1024 returnMe;
         returnMe.identifier = keyWithID.identifier;
-        returnMe.key = encodeML_KEM_1024(keyWithID.key);
-        returnMe.signature = signWithEd25519(this->Ed25519Key, encodeML_KEM_1024(keyWithID.key));
+        returnMe.key = encodePublicML_KEM_1024(keyWithID.key);
+        returnMe.signature = signWithEd25519(this->Ed25519Key, encodePublicML_KEM_1024(keyWithID.key));
         return returnMe;
     }
 
-    prekeyBytesWithIdentifierSignedX25519 IdentityKeyPair::signPublicPrekeyX25519(prekeyWithIdentifierX25519 keyWithID)
+    prekeyWithIdentifierSignedBytesX25519 IdentityKeyPair::signPublicPrekeyX25519(prekeyWithIdentifierX25519 keyWithID)
     {
-        prekeyBytesWithIdentifierSignedX25519 returnMe;
+        prekeyWithIdentifierSignedBytesX25519 returnMe;
         returnMe.identifier = keyWithID.identifier;
-        returnMe.key = encodeX25519(keyWithID.key);
-        returnMe.signature = signWithEd25519(this->Ed25519Key, encodeX25519(keyWithID.key));
+        returnMe.key = encodePublicX25519(keyWithID.key);
+        returnMe.signature = signWithEd25519(this->Ed25519Key, encodePublicX25519(keyWithID.key));
         return returnMe;
     }
 
     // Redo signing algorithm for speed of signing
-    std::vector<prekeyBytesWithIdentifierSignedML_KEM_1024> IdentityKeyPair::signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifierML_KEM_1024> inList)
+    std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> IdentityKeyPair::signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifierML_KEM_1024> inList)
     {
-        std::vector<prekeyBytesWithIdentifierSignedML_KEM_1024> outList;
+        std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> outList;
 
         EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
@@ -69,7 +69,7 @@ namespace Q3Crypto
             std::array<uint8_t, 64> signedStorage{};
             size_t SignatureLength;//will end us as 64
 
-            std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> plaintext = encodeML_KEM_1024(inList[i].key);
+            std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> plaintext = encodePublicML_KEM_1024(inList[i].key);
 
             success = EVP_PKEY_sign(context, signedStorage.data(), &SignatureLength, plaintext.data(), plaintext.size()) == 1;
             if(!success)
@@ -79,7 +79,7 @@ namespace Q3Crypto
                 throw std::runtime_error("Failed to Sign to Plaintext");
             }
 
-            outList.push_back({encodeML_KEM_1024(inList[i].key), inList[i].identifier, signedStorage});
+            outList.push_back({encodePublicML_KEM_1024(inList[i].key), inList[i].identifier, signedStorage});
         }
 
 
@@ -90,9 +90,9 @@ namespace Q3Crypto
         return outList;
     }
 
-    std::vector<prekeyBytesWithIdentifierSignedX25519> IdentityKeyPair::signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifierX25519> inList)
+    std::vector<prekeyWithIdentifierSignedBytesX25519> IdentityKeyPair::signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifierX25519> inList)
     {
-        std::vector<prekeyBytesWithIdentifierSignedX25519> outList;
+        std::vector<prekeyWithIdentifierSignedBytesX25519> outList;
 
         EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
@@ -117,7 +117,7 @@ namespace Q3Crypto
             std::array<uint8_t, 64> signedStorage{};
             size_t SignatureLength;//will end us as 64
 
-            std::array<std::uint8_t, PublicKeySizeX25519 + 1> plaintext = encodeX25519(inList[i].key);
+            std::array<std::uint8_t, PublicKeySizeX25519 + 1> plaintext = encodePublicX25519(inList[i].key);
 
             success = EVP_PKEY_sign(context, signedStorage.data(), &SignatureLength, plaintext.data(), plaintext.size()) == 1;
             if(!success)
@@ -127,7 +127,7 @@ namespace Q3Crypto
                 throw std::runtime_error("Failed to Sign to Plaintext");
             }
 
-            outList.push_back({encodeX25519(inList[i].key), inList[i].identifier, signedStorage});
+            outList.push_back({encodePublicX25519(inList[i].key), inList[i].identifier, signedStorage});
         }
 
 

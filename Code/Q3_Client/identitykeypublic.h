@@ -13,10 +13,10 @@ namespace Q3Crypto
         EVP_PKEY_X25519_ptr X25519Key;
     public:
         IdentityKeyPublic(identityKeyPairBytes keyBytes);
-        bool checkSignature(prekeyBytesWithIdentifierSignedML_KEM_1024 checkMe);
-        bool checkSignature(prekeyBytesWithIdentifierSignedX25519 checkMe);
-        bool checkSignature(std::vector<prekeyBytesWithIdentifierSignedML_KEM_1024>);
-        bool checkSignature(std::vector<prekeyBytesWithIdentifierSignedX25519>);
+        bool checkSignature(prekeyWithIdentifierSignedBytesML_KEM_1024 checkMe);
+        bool checkSignature(prekeyWithIdentifierSignedBytesX25519 checkMe);
+        bool checkSignature(std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024>);
+        bool checkSignature(std::vector<prekeyWithIdentifierSignedBytesX25519>);
 
     };
 }

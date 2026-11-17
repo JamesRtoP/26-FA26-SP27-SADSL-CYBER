@@ -133,6 +133,9 @@ namespace Q3Crypto
     SecretData<PrivateKeySizeEd25519 + 1> encodePrivateEd25519(const EVP_PKEY_Ed25519_ptr& key);
     SecretData<PrivateKeySizeML_KEM_1024 + 1> encodePrivateML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& key);
 
+    EVP_PKEY_X25519_ptr decodePrivateX25519(SecretData<PrivateKeySizeX25519 + 1> encoded);
+    EVP_PKEY_Ed25519_ptr decodePrivateEd25519(SecretData<PrivateKeySizeEd25519 + 1> encoded);
+    EVP_PKEY_ML_KEM_1024_ptr decodePrivateML_KEM_1024(const SecretData<PrivateKeySizeML_KEM_1024 + 1>& encoded);
 
 
 }

@@ -6,21 +6,21 @@ namespace Q3Crypto
 
     IdentityKeyPublic::IdentityKeyPublic(identityKeyPairBytes keyBytes)
     {
-        this->Ed25519Key = decodeEd25519(keyBytes.Ed25519_key);
-        this->X25519Key = decodeX25519(keyBytes.X25519_key);
+        this->Ed25519Key = decodePublicEd25519(keyBytes.Ed25519_key);
+        this->X25519Key = decodePublicX25519(keyBytes.X25519_key);
     }
 
-    bool IdentityKeyPublic::checkSignature(prekeyBytesWithIdentifierSignedML_KEM_1024 checkMe)
+    bool IdentityKeyPublic::checkSignature(prekeyWithIdentifierSignedBytesML_KEM_1024 checkMe)
     {
         return checkSignWithEd25519(this->Ed25519Key, checkMe.signature, checkMe.key);
     }
 
-    bool IdentityKeyPublic::checkSignature(prekeyBytesWithIdentifierSignedX25519 checkMe)
+    bool IdentityKeyPublic::checkSignature(prekeyWithIdentifierSignedBytesX25519 checkMe)
     {
         return checkSignWithEd25519(this->Ed25519Key, checkMe.signature, checkMe.key);
     }
 
-    bool IdentityKeyPublic::checkSignature(std::vector<prekeyBytesWithIdentifierSignedML_KEM_1024> list)
+    bool IdentityKeyPublic::checkSignature(std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> list)
     {
         EVP_SIGNATURE* verifyingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!verifyingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
@@ -65,7 +65,7 @@ namespace Q3Crypto
         return true;
     }
 
-    bool IdentityKeyPublic::checkSignature(std::vector<prekeyBytesWithIdentifierSignedX25519>list)
+    bool IdentityKeyPublic::checkSignature(std::vector<prekeyWithIdentifierSignedBytesX25519>list)
     {
         EVP_SIGNATURE* verifyingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
         if (!verifyingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
