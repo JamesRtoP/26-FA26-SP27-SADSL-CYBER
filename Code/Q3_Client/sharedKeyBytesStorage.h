@@ -8,16 +8,17 @@ namespace Q3Crypto
     class SharedKeyBytesStorage
     {
     private:
-        identityKey identity_key;
-        prekeyBytesWithIdentifierSigned curvePrekey;
-        prekeyBytesWithIdentifierSigned lastResortpqkemKey;
-        std::vector<prekeyBytesWithIdentifierSigned> curveBulkPrekeys;
-        std::vector<prekeyBytesWithIdentifierSigned> pqkemBulkPrekeys;
+        identityKeyPairBytes identity_key;
+        prekeyWithIdentifierSignedBytesX25519 curvePrekey;
+        prekeyWithIdentifierSignedBytesML_KEM_1024 lastResortpqkemKey;
+        std::vector<prekeyWithIdentifierSignedBytesX25519> curveBulkPrekeys;
+        std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> pqkemBulkPrekeys;
     public:
-        SharedKeyBytesStorage(identityKey new_identity_key,
-                         prekeyBytesWithIdentifierSigned new_curvePrekey,prekeyBytesWithIdentifierSigned new_lastResortpqkemKey,
-                         std::vector<prekeyBytesWithIdentifierSigned> new_curveBulkPrekeys, std::vector<prekeyBytesWithIdentifierSigned> new_pqkemBulkPrekeys);
+        SharedKeyBytesStorage(identityKeyPairBytes new_identity_keyBytes,
+                         prekeyWithIdentifierSignedBytesX25519 new_curvePrekeyBytes,prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKeyBytes,
+                         std::vector<prekeyWithIdentifierSignedBytesX25519> new_curveBulkPrekeysBytes, std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> new_pqkemBulkPrekeysBytes);
     };
 }
 
 #endif // SHAREDKEYBYTESSTORAGE_H
+// identityKey identity_key, prekeyWithIdentifier curvePrekey, prekeyWithIdentifier lastResortpqkemKey, std::vector<prekeyWithIdentifier> curveBulkPrekeys, std::vector<prekeyWithIdentifier> pqkemBulkPrekeys
