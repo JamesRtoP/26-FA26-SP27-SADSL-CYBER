@@ -30,16 +30,93 @@ ApplicationWindow {
     minimumWidth: 880
     minimumHeight: 580
     title: "Q3-Chat"
-    color: "#0d1110"
+    color: root.chatBackground
     font.family: "Segoe UI"
+    // Session preferences.
+    property bool lightChat: false
+    property int chatFontSize: 16
 
-    readonly property color panel: "#131a16"
-    readonly property color surface: "#1c261f"
-    readonly property color divider: "#2a372e"
-    readonly property color foreground: "#e7eee9"
-    readonly property color muted: "#99aa9d"
-    readonly property color accent: "#a3e875"
+    // Shared application colors: light theme first, dark theme second.
+    readonly property color chatBackground:
+        lightChat ? "#FFFFFF" : "#0D0F12"
 
+    readonly property color panel:
+        lightChat ? "#F4F6F9" : "#111820"
+
+    readonly property color surface:
+        lightChat ? "#FFFFFF" : "#18222C"
+
+    readonly property color headerColor:
+        lightChat ? "#F4F6F9" : "#101820"
+
+    readonly property color foreground:
+        lightChat ? "#17212B" : "#E8EEF5"
+
+    readonly property color muted:
+        lightChat ? "#526477" : "#9AAEBF"
+
+    readonly property color divider:
+        lightChat ? "#D5DEE8" : "#304452"
+
+    readonly property color accent:
+        lightChat ? "#096DAA" : "#55BDFF"
+
+    readonly property color accentHover:
+        lightChat ? "#075C91" : "#7ACBFF"
+
+    readonly property color accentPressed:
+        lightChat ? "#064E7B" : "#329FDE"
+
+    readonly property color onAccent:
+        lightChat ? "#FFFFFF" : "#07131D"
+
+    readonly property color hoverSurface:
+        lightChat ? "#E7EDF4" : "#243441"
+
+    readonly property color pressedSurface:
+        lightChat ? "#D7E2ED" : "#304452"
+
+    readonly property color selectedSurface:
+        lightChat ? "#DDEFFC" : "#1C2B38"
+
+    readonly property color avatarSurface:
+        lightChat ? "#DEEBF6" : "#24394A"
+
+    readonly property color selection:
+        lightChat ? "#096DAA" : "#245F86"
+
+    readonly property color selectedText: "#FFFFFF"
+
+    readonly property color success:
+        lightChat ? "#17703D" : "#52F28A"
+
+    readonly property color warning:
+        lightChat ? "#964500" : "#FFB86B"
+
+    readonly property color scrim:
+        lightChat ? "#660F172A" : "#B305090D"
+
+    readonly property color chatInputBackground:
+        lightChat ? "#EDF2F7" : "#18222C"
+
+    // Existing chat components use these names.
+    readonly property color chatText: foreground
+    readonly property color chatMuted: muted
+    readonly property color chatSender: accent
+
+    // Colors inherited by built-in Qt controls.
+    palette.window: root.panel
+    palette.windowText: root.foreground
+    palette.base: root.chatBackground
+    palette.alternateBase: root.surface
+    palette.text: root.foreground
+    palette.button: root.surface
+    palette.buttonText: root.foreground
+    palette.highlight: root.selection
+    palette.highlightedText: root.selectedText
+    palette.toolTipBase: root.surface
+    palette.toolTipText: root.foreground
+    palette.placeholderText: root.muted
     property bool loggedIn: false
     property bool authBusy: false
     property bool chatBusy: false
@@ -95,7 +172,9 @@ ApplicationWindow {
     property string pendingAccount: ""
     property string pendingRecipient: ""
     property string pendingBody: ""
-    property int pendingMessageChat: -1
+    property double pendingSentAt: 0
+    property string pendingMessageRecipient: ""
+    property bool historyBusy: false
 
     property string authStatus: ""
     property string chatStatus: ""
@@ -108,7 +187,37 @@ ApplicationWindow {
     readonly property var currentChat:
         selectedChat >= 0 && selectedChat < conversations.length
         ? conversations[selectedChat] : null
+    ListModel {
+        id: conversationViewModel
+        dynamicRoles: true
+    }
 
+    ListModel {
+        id: messageViewModel
+        dynamicRoles: true
+    }
+
+    onSelectedChatChanged: reloadMessageView()
+
+    function reloadMessageView() {
+        if (!messageViewModel || !messageList)
+            return
+
+        messageViewModel.clear()
+
+        const chat = root.selectedChat >= 0
+                     && root.selectedChat < root.conversations.length
+                     ? root.conversations[root.selectedChat] : null
+
+        if (!chat)
+            return
+
+        for (let i = 0; i < chat.messages.length; ++i)
+            messageViewModel.append({ entry: chat.messages[i] })
+
+        messageList.forceLayout()
+        messageList.positionViewAtEnd()
+    }
     function authenticate(registering) {
         if (authBusy)
             return
@@ -125,12 +234,12 @@ ApplicationWindow {
 
     function beginChat() {
         const recipient = recipientField.text.trim()
-        if (!recipient.length || chatBusy)
+        if (!recipient.length || chatBusy || sendBusy || historyBusy)
             return
 
         // Reopen an existing session conversation.
         for (let i = 0; i < conversations.length; ++i) {
-            if (conversations[i].name === recipient) {
+            if (conversations[i].name.toLowerCase() === recipient.toLowerCase()) {
                 selectedChat = i
                 newChatDialog.close()
                 return
@@ -145,32 +254,47 @@ ApplicationWindow {
 
     function sendCurrentMessage() {
         const body = composer.text.trim()
-        if (!currentChat || !body.length || sendBusy)
+        if (!currentChat || !body.length || sendBusy || chatBusy || historyBusy)
             return
 
         // Remember the target until its asynchronous response arrives.
-        pendingMessageChat = selectedChat
+        pendingMessageRecipient = currentChat.name
         pendingBody = body
+        pendingSentAt = Date.now()
         messageStatus = ""
         sendBusy = true
         clientService.sendMessage(currentChat.name, body)
     }
 
-    function formattedEventTime(timestamp) {
-        if (!timestamp)
-            return ""
+    function makeMessage(body, sender, timestamp) {
+        const missing = timestamp === undefined
+                        || timestamp === null || timestamp === ""
+        const date = missing ? new Date(NaN) : new Date(timestamp)
+        const valid = !isNaN(date.getTime())
 
-        const date = new Date(timestamp)
-
-        if (isNaN(date.getTime()))
-            return ""
-
-        return Qt.formatTime(date, "HH:mm")
+        return {
+            body: body,
+            sender: sender,
+            timestamp: valid ? date.getTime() : null,
+            time: valid ? Qt.formatTime(date, "h:mm AP") : "",
+            dayKey: valid ? Qt.formatDate(date, "yyyy-MM-dd") : "unknown",
+            dayLabel: valid ? Qt.formatDate(date, "MMMM d, yyyy")
+                            : "Date unavailable"
+        }
     }
 
+    function sortMessages(messages) {
+        messages.sort(function(a, b) {
+            if (a.timestamp === null)
+                return b.timestamp === null ? 0 : -1
+            if (b.timestamp === null)
+                return 1
+            return a.timestamp - b.timestamp
+        })
+    }
     function populateConversations(events) {
         const loadedChats = []
-        const chatIndices = {}
+        const chatIndices = Object.create(null)
         const myUsername = root.accountName.toLowerCase()
 
         for (let i = 0; i < events.length; ++i) {
@@ -212,21 +336,36 @@ ApplicationWindow {
                     : String(event.data)
 
                 if (body.length > 0) {
-                    loadedChats[chatIndex].messages.push({
-                        body: body,
-                        time: root.formattedEventTime(
-                            event.timestamp),
-                        sender: sender
-                    })
+                    loadedChats[chatIndex].messages.push(
+                        root.makeMessage(body, sender, event.timestamp)
+                    )
 
                     loadedChats[chatIndex].preview = body
                 }
             }
         }
+        // Put each conversation's messages in chronological order.
+        for (let t = 0; t < loadedChats.length; ++t) {
+            const messages = loadedChats[t].messages
+            root.sortMessages(messages)
 
+            if (messages.length > 0)
+                loadedChats[t].preview = messages[messages.length - 1].body
+        }
         root.conversations = loadedChats
-        root.selectedChat =
-            loadedChats.length > 0 ? 0 : -1
+
+        conversationViewModel.clear()
+        for (let h = 0; h < loadedChats.length; ++h) {
+            conversationViewModel.append({
+                entry: {
+                    name: loadedChats[h].name,
+                    preview: loadedChats[h].preview
+                }
+            })
+        }
+
+        root.selectedChat = loadedChats.length > 0 ? 0 : -1
+        root.reloadMessageView()
     }
 
     Connections {
@@ -249,8 +388,11 @@ ApplicationWindow {
             root.authBusy = false
             root.authStatus = ""
             root.accountName = root.pendingAccount
+            root.historyBusy = true
             root.loggedIn = true
             root.conversations = []
+            conversationViewModel.clear()
+            messageViewModel.clear()
             root.selectedChat = -1
             passwordField.clear()
 
@@ -266,9 +408,11 @@ ApplicationWindow {
 
         function onEventsLoaded(events) {
             root.populateConversations(events)
+            root.historyBusy = false
         }
 
         function onEventsLoadFailed(message) {
+            root.historyBusy = false
             console.warn("Could not load events:", message)
 
             root.messageStatus =
@@ -283,7 +427,12 @@ ApplicationWindow {
                     preview: "No messages yet",
                     messages: []
                 }])
-
+            conversationViewModel.append({
+                entry: {
+                    name: root.pendingRecipient,
+                    preview: "No messages yet"
+                }
+            })
             root.selectedChat =
                 root.conversations.length - 1
 
@@ -302,40 +451,65 @@ ApplicationWindow {
         }
 
         function onMessageSent() {
-            let updated = root.conversations.slice()
+            if (!root.sendBusy || !root.pendingMessageRecipient.length)
+                return
 
-            let chat = Object.assign(
-                {},
-                updated[root.pendingMessageChat]
+            const recipient = root.pendingMessageRecipient
+            const key = recipient.toLowerCase()
+            const message = root.makeMessage(
+                root.pendingBody, root.accountName, root.pendingSentAt
             )
 
-            chat.messages = chat.messages.concat([{
-                body: root.pendingBody,
-                time: Qt.formatTime(
-                    new Date(),
-                    "HH:mm"
-                ),
-                sender: root.accountName
-            }])
+            // Resolve the recipient now; history may have reordered the list.
+            const updated = root.conversations.slice()
+            let chatIndex = -1
+            for (let i = 0; i < updated.length; ++i) {
+                if (updated[i].name.toLowerCase() === key) {
+                    chatIndex = i
+                    break
+                }
+            }
 
-            chat.preview = root.pendingBody
-            updated[root.pendingMessageChat] = chat
+            const newChat = chatIndex < 0
+            const chat = newChat
+                         ? { name: recipient, preview: "", messages: [] }
+                         : Object.assign({}, updated[chatIndex])
+            chat.messages = chat.messages.concat([message])
+            chat.preview = message.body
+
+            if (newChat) {
+                chatIndex = updated.length
+                updated.push(chat)
+            } else {
+                updated[chatIndex] = chat
+            }
             root.conversations = updated
 
-            root.sendBusy = false
-            root.pendingMessageChat = -1
-            root.pendingBody = ""
-            composer.clear()
+            const entry = { name: chat.name, preview: chat.preview }
+            if (newChat)
+                conversationViewModel.append({ entry: entry })
+            else
+                conversationViewModel.setProperty(chatIndex, "entry", entry)
 
-            Qt.callLater(function() {
+            if (newChat && root.selectedChat < 0) {
+                // Changing selection loads the message once.
+                root.selectedChat = chatIndex
+            } else if (root.selectedChat === chatIndex) {
+                messageViewModel.append({ entry: message })
+                messageList.forceLayout()
                 messageList.positionViewAtEnd()
-            })
+            }
+
+            root.sendBusy = false
+            root.pendingMessageRecipient = ""
+            root.pendingBody = ""
+            root.pendingSentAt = 0
+            composer.clear()
         }
 
         function onMessageFailed(message) {
             root.sendBusy = false
-            root.pendingMessageChat = -1
-
+            root.pendingMessageRecipient = ""
             root.messageStatus =
                 message
                 || "Message wasn't sent. Try again."
@@ -352,20 +526,30 @@ ApplicationWindow {
 
         contentItem: Text {
             text: control.text
-            color: control.primary ? "#17230f" : root.foreground
+            color: control.primary ? (root.lightChat ? "#FFFFFF" : "#07131D") : root.foreground
             font.pixelSize: 13
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
+            opacity: control.enabled ? 1 : 0.45
         }
 
         background: Rectangle {
             radius: 6
             opacity: control.enabled ? 1 : 0.45
+
             color: control.primary
-                   ? (control.down ? "#83c45a" : control.hovered ? "#b5f08d" : root.accent)
-                   : (control.down ? "#334637" : control.hovered ? "#28382d" : root.surface)
-            border.color: control.activeFocus ? root.accent : "transparent"
+                   ? (control.down ? root.accentPressed
+                      : control.hovered ? root.accentHover
+                      : root.accent)
+                   : (control.down ? root.pressedSurface
+                      : control.hovered ? root.hoverSurface
+                      : root.surface)
+
+            border.color: control.activeFocus
+                          ? root.foreground
+                          : control.primary ? root.accent : root.divider
+            border.width: control.activeFocus ? 2 : 1
         }
     }
 
@@ -377,13 +561,13 @@ ApplicationWindow {
         rightPadding: 13
         color: root.foreground
         placeholderTextColor: root.muted
-        selectionColor: "#446237"
-        selectedTextColor: root.foreground
+        selectionColor: root.selection
+        selectedTextColor: root.selectedText
         font.pixelSize: 14
 
         background: Rectangle {
             radius: 6
-            color: "#0e1510"
+            color: root.chatBackground
             border.color: control.activeFocus ? root.accent : root.divider
         }
     }
@@ -393,7 +577,7 @@ ApplicationWindow {
         implicitWidth: 40
         implicitHeight: 40
         radius: 7
-        color: "#2b3c2c"
+        color: root.avatarSurface
 
         Text {
             anchors.centerIn: parent
@@ -463,7 +647,7 @@ ApplicationWindow {
 
                 contentItem: Text {
                     text: "—"
-                    color: "#C2CDD7"
+                    color: root.foreground
                     font.family: "Segoe UI Symbol"
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignHCenter
@@ -473,9 +657,9 @@ ApplicationWindow {
                 background: Rectangle {
                     radius: 4
                     color: minimizeWindowButton.down
-                           ? "#2B3A47"
+                           ? root.pressedSurface
                            : minimizeWindowButton.hovered
-                             ? "#20303C"
+                             ? root.hoverSurface
                              : "transparent"
 
                     Behavior on color {
@@ -503,7 +687,7 @@ ApplicationWindow {
 
                 contentItem: Text {
                     text: root.desktopExpanded ? "❐" : "□"
-                    color: "#C2CDD7"
+                    color: root.foreground
                     font.family: "Segoe UI Symbol"
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
@@ -513,9 +697,9 @@ ApplicationWindow {
                 background: Rectangle {
                     radius: 4
                     color: expandWindowButton.down
-                           ? "#2B3A47"
+                           ? root.pressedSurface
                            : expandWindowButton.hovered
-                             ? "#20303C"
+                             ? root.hoverSurface
                              : "transparent"
 
                     Behavior on color {
@@ -554,7 +738,7 @@ ApplicationWindow {
 
                 contentItem: Text {
                     text: "×"
-                    color: "#E8EEF5"
+                    color: closeWindowButton.down || closeWindowButton.hovered ? root.selectedText : root.foreground
                     font.family: "Segoe UI Symbol"
                     font.pixelSize: 17
                     horizontalAlignment: Text.AlignHCenter
@@ -592,7 +776,7 @@ ApplicationWindow {
         id: signInScreen
         anchors.fill: parent
         visible: !root.loggedIn
-        color: "#0B0F14"
+        color: root.chatBackground
 
         function submit(registering) {
             const usernameMissing =
@@ -628,6 +812,7 @@ ApplicationWindow {
         Canvas {
             id: networkBackground
             anchors.fill: parent
+            visible: !root.lightChat
 
             readonly property var nodes: [
                 [0.03, 0.14], [0.14, 0.08], [0.26, 0.18],
@@ -719,7 +904,7 @@ ApplicationWindow {
             clip: true
             contentWidth: availableWidth
             contentHeight: Math.max(
-                availableHeight,
+                root.height,
                 signInCard.implicitHeight + 48
             )
 
@@ -737,8 +922,8 @@ ApplicationWindow {
                     implicitHeight: signInForm.implicitHeight + 64
                     height: implicitHeight
                     radius: 12
-                    color: "#141B24"
-                    border.color: "#2B3645"
+                    color: root.surface
+                    border.color: root.divider
                     border.width: 1
 
                     ColumnLayout {
@@ -752,7 +937,7 @@ ApplicationWindow {
                         Text {
                             Layout.fillWidth: true
                             text: "Q3-Chat"
-                            color: "#55BDFF"
+                            color: root.accent
                             font.family: "ROG FONTS"
                             font.pixelSize: 33
                             font.weight: Font.Bold
@@ -768,12 +953,12 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 1
-                                color: "#34465A"
+                                color: root.divider
                             }
 
                             Text {
                                 text: "SIGN IN"
-                                color: "#A9B8C8"
+                                color: root.muted
                                 font.family: "Consolas"
                                 font.pixelSize: 11
                                 font.weight: Font.DemiBold
@@ -783,13 +968,13 @@ ApplicationWindow {
                             Rectangle {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 1
-                                color: "#34465A"
+                                color: root.divider
                             }
                         }
 
                         Text {
                             text: "Username"
-                            color: "#E8EEF5"
+                            color: root.foreground
                             font.family: "Consolas"
                             font.pixelSize: 13
                             font.weight: Font.Medium
@@ -816,18 +1001,18 @@ ApplicationWindow {
 
                             font.family: "Consolas"
                             font.pixelSize: 14
-                            color: "#E8EEF5"
-                            selectionColor: "#245F86"
-                            selectedTextColor: "#FFFFFF"
+                            color: root.foreground
+                            selectionColor: root.selection
+                            selectedTextColor: root.selectedText
                             opacity: enabled ? 1 : 0.65
                             Accessible.name: "Username"
 
                             background: Rectangle {
                                 radius: 6
-                                color: "#0B0F14"
+                                color: root.chatBackground
                                 border.color:
                                     usernameField.activeFocus
-                                    ? "#55BDFF" : "#374456"
+                                    ? root.accent : root.divider
                                 border.width:
                                     usernameField.activeFocus ? 2 : 1
                             }
@@ -859,7 +1044,7 @@ ApplicationWindow {
 
                         Text {
                             text: "Password"
-                            color: "#E8EEF5"
+                            color: root.foreground
                             font.family: "Consolas"
                             font.pixelSize: 13
                             font.weight: Font.Medium
@@ -886,18 +1071,18 @@ ApplicationWindow {
 
                             font.family: "Consolas"
                             font.pixelSize: 14
-                            color: "#E8EEF5"
-                            selectionColor: "#245F86"
-                            selectedTextColor: "#FFFFFF"
+                            color: root.foreground
+                            selectionColor: root.selection
+                            selectedTextColor: root.selectedText
                             opacity: enabled ? 1 : 0.65
                             Accessible.name: "Password"
 
                             background: Rectangle {
                                 radius: 6
-                                color: "#0B0F14"
+                                color: root.chatBackground
                                 border.color:
                                     passwordField.activeFocus
-                                    ? "#55BDFF" : "#374456"
+                                    ? root.accent : root.divider
                                 border.width:
                                     passwordField.activeFocus ? 2 : 1
                             }
@@ -937,7 +1122,7 @@ ApplicationWindow {
 
                             text: root.authStatus
                             textFormat: Text.PlainText
-                            color: "#E8EEF5"
+                            color: root.foreground
                             font.family: "Consolas"
                             font.pixelSize: 13
                             wrapMode: Text.Wrap
@@ -962,7 +1147,7 @@ ApplicationWindow {
 
                             contentItem: Text {
                                 text: loginButton.text
-                                color: "#07131D"
+                                color: root.lightChat ? "#FFFFFF" : "#07131D"
                                 font.family: "Consolas"
                                 font.pixelSize: 14
                                 font.weight: Font.DemiBold
@@ -972,12 +1157,12 @@ ApplicationWindow {
 
                             background: Rectangle {
                                 radius: 6
-                                color: loginButton.down ? "#329FDE"
-                                     : loginButton.hovered ? "#7ACBFF"
-                                     : "#55BDFF"
+                                color: loginButton.down ? root.accentPressed
+                                     : loginButton.hovered ? root.accentHover
+                                     : root.accent
                                 border.color:
                                     loginButton.activeFocus
-                                    ? "#FFFFFF" : "transparent"
+                                    ? root.foreground : "transparent"
                                 border.width: 2
                             }
 
@@ -998,7 +1183,7 @@ ApplicationWindow {
 
                             contentItem: Text {
                                 text: registerButton.text
-                                color: "#E8EEF5"
+                                color: root.foreground
                                 font.family: "Consolas"
                                 font.pixelSize: 13
                                 font.weight: Font.Medium
@@ -1008,12 +1193,12 @@ ApplicationWindow {
 
                             background: Rectangle {
                                 radius: 6
-                                color: registerButton.down ? "#253345"
-                                     : registerButton.hovered ? "#1C2836"
+                                color: registerButton.down ? root.pressedSurface
+                                     : registerButton.hovered ? root.hoverSurface
                                      : "transparent"
                                 border.color:
                                     registerButton.activeFocus
-                                    ? "#55BDFF" : "#374456"
+                                    ? root.accent : root.divider
                                 border.width:
                                     registerButton.activeFocus ? 2 : 1
                             }
@@ -1030,7 +1215,7 @@ ApplicationWindow {
         id: workspace
         anchors.fill: parent
         visible: root.loggedIn
-        color: "#0B0F14"
+        color: root.chatBackground
 
         SplitView {
             anchors.fill: parent
@@ -1040,10 +1225,10 @@ ApplicationWindow {
                 implicitWidth: 6
 
                 color: SplitHandle.pressed
-                       ? "#55BDFF"
+                       ? root.accent
                        : SplitHandle.hovered
-                         ? "#263D4D"
-                         : "#182630"
+                         ? root.hoverSurface
+                         : root.surface
 
                 Behavior on color {
                     ColorAnimation {
@@ -1055,7 +1240,7 @@ ApplicationWindow {
                     width: 1
                     height: parent.height
                     anchors.centerIn: parent
-                    color: "#304453"
+                    color: root.divider
                 }
             }
 
@@ -1065,7 +1250,7 @@ ApplicationWindow {
                 SplitView.preferredWidth: 320
                 SplitView.minimumWidth: 235
                 SplitView.maximumWidth: 440
-                color: "#111820"
+                color: root.panel
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -1075,24 +1260,24 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 82
-                        color: "#0D141B"
+                        color: root.headerColor
 
                         gradient: Gradient {
                             orientation: Gradient.Horizontal
 
                             GradientStop {
                                 position: 0.0
-                                color: "#122230"
+                                color: root.lightChat ? root.headerColor : "#122230"
                             }
 
                             GradientStop {
                                 position: 0.55
-                                color: "#0D171F"
+                                color: root.lightChat ? root.headerColor : "#0D171F"
                             }
 
                             GradientStop {
                                 position: 1.0
-                                color: "#101922"
+                                color: root.lightChat ? root.headerColor : "#101922"
                             }
                         }
 
@@ -1101,11 +1286,25 @@ ApplicationWindow {
                         Canvas {
                             id: headerStars
                             anchors.fill: parent
-                            opacity: 0.55
+                            visible: true
+
+                            onVisibleChanged: {
+                                if (visible)
+                                    requestPaint()
+                            }
+                            opacity: root.lightChat ? 0.75 : 0.55
 
                             onWidthChanged: requestPaint()
                             onHeightChanged: requestPaint()
+                            Component.onCompleted: requestPaint()
 
+                            Connections {
+                                target: root
+
+                                function onLightChatChanged() {
+                                    headerStars.requestPaint()
+                                }
+                            }
                             onPaint: {
                                 const ctx = getContext("2d")
                                 ctx.clearRect(0, 0, width, height)
@@ -1128,7 +1327,7 @@ ApplicationWindow {
                                 ]
 
                                 ctx.lineWidth = 1
-                                ctx.strokeStyle = "#23506A"
+                                ctx.strokeStyle = root.lightChat ? "#475569" : "#23506A"
 
                                 for (let i = 0; i < links.length; ++i) {
                                     const first = points[links[i][0]]
@@ -1146,7 +1345,7 @@ ApplicationWindow {
                                     ctx.stroke()
                                 }
 
-                                ctx.fillStyle = "#3A7597"
+                                ctx.fillStyle = root.lightChat ? "#334155" : "#3A7597"
 
                                 for (let j = 0; j < points.length; ++j) {
                                     ctx.beginPath()
@@ -1162,22 +1361,46 @@ ApplicationWindow {
                             }
                         }
 
-                        Rectangle {
+                        Button {
+                            id: homeButton
                             width: 46
                             height: 46
-                            radius: 8
                             anchors.left: parent.left
                             anchors.leftMargin: 22
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#55BDFF"
+                            enabled: !root.sendBusy && !root.chatBusy && !root.historyBusy
+                            hoverEnabled: true
+                            Accessible.name: "Home"
 
-                            Text {
-                                anchors.centerIn: parent
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Home"
+                            ToolTip.delay: 500
+
+                            background: Rectangle {
+                                radius: 8
+                                color: homeButton.down
+                                       ? root.accentPressed
+                                       : homeButton.hovered
+                                         ? root.accentHover
+                                         : root.accent
+                                border.width: homeButton.visualFocus ? 2 : 0
+                                border.color: root.foreground
+                            }
+
+                            contentItem: Text {
                                 text: "Q3"
-                                color: "#07131D"
+                                color: root.lightChat ? "#FFFFFF" : "#07131D"
                                 font.family: "ROG FONTS"
                                 font.pixelSize: 17
                                 font.weight: Font.Bold
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                root.selectedChat = -1
+                                root.messageStatus = ""
+                                composer.clear()
                             }
                         }
 
@@ -1186,7 +1409,7 @@ ApplicationWindow {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            color: "#1D2A35"
+                            color: root.divider
                         }
                     }
 
@@ -1202,7 +1425,7 @@ ApplicationWindow {
                         Text {
                             Layout.fillWidth: true
                             text: "Messages"
-                            color: "#E8EEF5"
+                            color: root.foreground
                             font.family: "Consolas"
                             font.pixelSize: 18
                             font.weight: Font.DemiBold
@@ -1212,13 +1435,13 @@ ApplicationWindow {
                             id: addConversationButton
                             Layout.preferredWidth: 34
                             Layout.preferredHeight: 34
-                            hoverEnabled: true
+                            enabled: !root.historyBusy && !root.chatBusy && !root.sendBusy
 
                             contentItem: Text {
                                 text: "+"
                                 color: addConversationButton.down
-                                       ? "#E8EEF5"
-                                       : "#55BDFF"
+                                       ? root.foreground
+                                       : root.accent
                                 font.family: "Consolas"
                                 font.pixelSize: 22
                                 font.weight: Font.Normal
@@ -1229,10 +1452,10 @@ ApplicationWindow {
                             background: Rectangle {
                                 radius: width / 2
                                 color: addConversationButton.down
-                                       ? "#2B4354"
+                                       ? root.pressedSurface
                                        : addConversationButton.hovered
-                                         ? "#223340"
-                                         : "#192630"
+                                         ? root.hoverSurface
+                                         : root.surface
 
                                 Behavior on color {
                                     ColorAnimation {
@@ -1264,10 +1487,10 @@ ApplicationWindow {
                         Layout.bottomMargin: 20
 
                         placeholderText: "Search conversations"
-                        placeholderTextColor: "#71869A"
-                        color: "#E8EEF5"
-                        selectionColor: "#245F86"
-                        selectedTextColor: "#FFFFFF"
+                        placeholderTextColor: root.muted
+                        color: root.foreground
+                        selectionColor: root.selection
+                        selectedTextColor: root.selectedText
                         font.family: "Consolas"
                         font.pixelSize: 13
 
@@ -1279,9 +1502,9 @@ ApplicationWindow {
 
                         background: Rectangle {
                             radius: 6
-                            color: "#18222C"
+                            color: root.chatInputBackground
                             border.color: search.activeFocus
-                                          ? "#55BDFF"
+                                          ? root.accent
                                           : "transparent"
                             border.width: 2
                         }
@@ -1298,7 +1521,7 @@ ApplicationWindow {
 
                         clip: true
                         spacing: 3
-                        model: root.conversations
+                        model: conversationViewModel
 
                         ScrollBar.vertical: ScrollBar {}
 
@@ -1323,12 +1546,12 @@ ApplicationWindow {
                                     width: 48
                                     height: 34
                                     radius: 9
-                                    color: "#1B2B38"
+                                    color: root.avatarSurface
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "•••"
-                                        color: "#55BDFF"
+                                        color: root.accent
                                         font.family: "Consolas"
                                         font.pixelSize: 14
                                         font.letterSpacing: 2
@@ -1343,16 +1566,18 @@ ApplicationWindow {
                                     width: 11
                                     height: 11
                                     rotation: 45
-                                    color: "#1B2B38"
+                                    color: root.avatarSurface
                                 }
                             }
 
                             Text {
                                 width: 220
-                                text: search.text.length > 0
-                                      ? "No matching conversations"
-                                      : "No conversations yet"
-                                color: "#A3B3C3"
+                                text: root.historyBusy
+                                      ? "Loading conversations..."
+                                      : search.text.length > 0
+                                        ? "No matching conversations"
+                                        : "No conversations yet"
+                                color: root.muted
                                 font.family: "Consolas"
                                 font.pixelSize: 14
                                 font.weight: Font.DemiBold
@@ -1365,7 +1590,8 @@ ApplicationWindow {
                             id: conversationRow
 
                             required property int index
-                            required property var modelData
+                            required property var entry
+                            readonly property var modelData: entry
 
                             readonly property bool matchesSearch:
                                 conversationRow.modelData.name
@@ -1394,9 +1620,9 @@ ApplicationWindow {
                                 color:
                                     conversationRow.index
                                     === root.selectedChat
-                                    ? "#1C2B38"
+                                    ? root.selectedSurface
                                     : conversationRow.hovered
-                                      ? "#17222C"
+                                      ? root.hoverSurface
                                       : "transparent"
 
                                 Rectangle {
@@ -1406,7 +1632,7 @@ ApplicationWindow {
                                     width: 3
                                     height: 24
                                     radius: 2
-                                    color: "#55BDFF"
+                                    color: root.accent
 
                                     visible:
                                         conversationRow.index
@@ -1421,7 +1647,7 @@ ApplicationWindow {
                                     Layout.preferredWidth: 36
                                     Layout.preferredHeight: 36
                                     radius: 18
-                                    color: "#24394A"
+                                    color: root.avatarSurface
 
                                     Text {
                                         anchors.centerIn: parent
@@ -1429,7 +1655,7 @@ ApplicationWindow {
                                             conversationRow.modelData.name
                                                 .substring(0, 2)
                                                 .toUpperCase()
-                                        color: "#70CBFF"
+                                        color: root.accent
                                         font.family: "Consolas"
                                         font.pixelSize: 11
                                         font.weight: Font.Bold
@@ -1445,7 +1671,7 @@ ApplicationWindow {
                                         text:
                                             conversationRow.modelData.name
                                         textFormat: Text.PlainText
-                                        color: "#E8EEF5"
+                                        color: root.foreground
                                         font.family: "Consolas"
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
@@ -1457,7 +1683,7 @@ ApplicationWindow {
                                         text:
                                             conversationRow.modelData.preview
                                         textFormat: Text.PlainText
-                                        color: "#8193A5"
+                                        color: root.muted
                                         font.family: "Consolas"
                                         font.pixelSize: 11
                                         elide: Text.ElideRight
@@ -1470,7 +1696,7 @@ ApplicationWindow {
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 1
-                        color: "#263440"
+                        color: root.divider
                     }
 
                     // Current account.
@@ -1478,7 +1704,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.leftMargin: 20
                         Layout.rightMargin: 20
-                        Layout.topMargin: 15
+                        Layout.topMargin: 24
                         Layout.bottomMargin: 15
                         spacing: 11
 
@@ -1486,14 +1712,14 @@ ApplicationWindow {
                             Layout.preferredWidth: 38
                             Layout.preferredHeight: 38
                             radius: 19
-                            color: "#24394A"
+                            color: root.avatarSurface
 
                             Text {
                                 anchors.centerIn: parent
                                 text: root.accountName
                                       .substring(0, 2)
                                       .toUpperCase()
-                                color: "#70CBFF"
+                                color: root.accent
                                 font.family: "Consolas"
                                 font.pixelSize: 11
                                 font.weight: Font.Bold
@@ -1508,7 +1734,7 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 text: root.accountName
                                 textFormat: Text.PlainText
-                                color: "#E8EEF5"
+                                color: root.foreground
                                 font.family: "Consolas"
                                 font.pixelSize: 12
                                 font.weight: Font.DemiBold
@@ -1522,17 +1748,51 @@ ApplicationWindow {
                                     Layout.preferredWidth: 7
                                     Layout.preferredHeight: 7
                                     radius: 4
-                                    color: "#52F28A"
+                                    color: root.success
                                 }
 
                                 Text {
                                     text: "CONNECTED"
-                                    color: "#52F28A"
+                                    color: root.success
                                     font.family: "Consolas"
                                     font.pixelSize: 9
                                     font.letterSpacing: 0.8
                                 }
                             }
+                        }
+                        Button {
+                            id: settingsButton
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            hoverEnabled: true
+
+                            contentItem: Text {
+                                text: "\u2699"
+                                color: root.foreground
+                                font.family: "Segoe UI Symbol"
+                                font.pixelSize: 22
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            background: Rectangle {
+                                radius: 6
+                                color: settingsButton.down
+                                       ? root.pressedSurface
+                                       : settingsButton.hovered
+                                         ? root.hoverSurface
+                                         : "transparent"
+                                border.color: settingsButton.activeFocus
+                                              ? root.accent
+                                              : "transparent"
+                            }
+
+                            Accessible.name: "Open settings"
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Settings"
+                            ToolTip.delay: 500
+
+                            onClicked: settingsDialog.open()
                         }
                     }
                 }
@@ -1551,29 +1811,35 @@ ApplicationWindow {
                         root.currentChat ? 82 : 0
 
                     visible: root.currentChat !== null
-                    color: "#101216"
+                    color: root.headerColor
 
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
 
                         GradientStop {
                             position: 0.0
-                            color: "#171A1F"
+                            color: root.lightChat ? root.headerColor : "#171A1F"
                         }
 
                         GradientStop {
                             position: 0.55
-                            color: "#101217"
+                            color: root.lightChat ? root.headerColor : "#101217"
                         }
 
                         GradientStop {
                             position: 1.0
-                            color: "#090B0F"
+                            color: root.lightChat ? root.headerColor : "#090B0F"
                         }
                     }
 
                     Canvas {
                         anchors.fill: parent
+                        visible: !root.lightChat
+
+                        onVisibleChanged: {
+                            if (visible)
+                                requestPaint()
+                        }
                         opacity: 0.55
 
                         Component.onCompleted: requestPaint()
@@ -1622,7 +1888,7 @@ ApplicationWindow {
                         Text {
                             Layout.alignment: Qt.AlignBaseline
                             text: "Messages"
-                            color: "#85909B"
+                            color: root.muted
                             font.family: "Consolas"
                             font.pixelSize: 12
                             font.weight: Font.Medium
@@ -1631,7 +1897,7 @@ ApplicationWindow {
                         Text {
                             Layout.alignment: Qt.AlignBaseline
                             text: "/"
-                            color: "#AAB4BE"
+                            color: root.muted
                             font.family: "Consolas"
                             font.pixelSize: 12
                             font.weight: Font.Bold
@@ -1645,7 +1911,7 @@ ApplicationWindow {
                                   : ""
 
                             textFormat: Text.PlainText
-                            color: "#E8EEF5"
+                            color: root.foreground
                             font.family: "Consolas"
                             font.pixelSize: 15
                             font.weight: Font.DemiBold
@@ -1657,16 +1923,27 @@ ApplicationWindow {
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
                         height: 1
-                        color: "#252B32"
+                        color: root.divider
                     }
                 }
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: root.chatBackground
+                    }
+
                     // Static deep-space conversation background.
                     Canvas {
                         id: conversationSpace
+                        visible: !root.lightChat
                         anchors.fill: parent
+                        onVisibleChanged: {
+                            if (visible)
+                                requestPaint()
+                        }
 
                         readonly property var stars: [
                             [0.04, 0.10], [0.12, 0.32],
@@ -1862,7 +2139,7 @@ ApplicationWindow {
                         Text {
                             Layout.alignment: Qt.AlignHCenter
                             text: "WSU DATA SCIENCE LAB"
-                            color: "#5E6872"
+                            color: root.muted
                             font.family: "Consolas"
                             font.pixelSize: 9
                             font.letterSpacing: 1.4
@@ -1880,10 +2157,7 @@ ApplicationWindow {
                         visible: root.currentChat !== null
                         clip: true
                         spacing: 22
-                        model:
-                            root.currentChat
-                            ? root.currentChat.messages
-                            : []
+                        model: messageViewModel
 
                         ScrollBar.vertical: ScrollBar {}
 
@@ -1891,73 +2165,124 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             visible: messageList.count === 0
                             text: "No messages yet"
-                            color: "#7D8791"
+                            color: root.chatMuted
                             font.family: "Consolas"
                             font.pixelSize: 11
                         }
 
-                        delegate: RowLayout {
+                        delegate: Column {
                             id: messageRow
 
-                            required property var modelData
+                            required property int index
+                            required property var entry
+                            readonly property var modelData: entry
+
+                            readonly property bool startsDay:
+                                index === 0
+                                || (index > 0 && index < messageViewModel.count
+                                    && modelData.dayKey !==
+                                       messageViewModel.get(index - 1).entry.dayKey)
 
                             width: ListView.view.width
                             spacing: 12
 
-                            Rectangle {
-                                Layout.preferredWidth: 34
-                                Layout.preferredHeight: 34
-                                Layout.alignment: Qt.AlignTop
-                                radius: 17
-                                color: "#24394A"
+                            RowLayout {
+                                width: parent.width
+                                visible: messageRow.startsDay
+                                spacing: 12
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: root.divider
+                                }
 
                                 Text {
-                                    anchors.centerIn: parent
-                                    text: String(
-                                              messageRow.modelData.sender
-                                              || root.accountName
-                                          ).substring(0, 2).toUpperCase()
-                                    color: "#70CBFF"
+                                    text: messageRow.modelData.dayLabel
+                                    color: root.muted
                                     font.family: "Consolas"
-                                    font.pixelSize: 10
-                                    font.weight: Font.Bold
+                                    font.pixelSize: 12
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: root.divider
                                 }
                             }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 5
 
-                                RowLayout {
-                                    spacing: 9
+                            RowLayout {
+                                width: parent.width
+                                spacing: 12
 
-                                    Text {
-                                        text: messageRow.modelData.sender
-                                              || root.accountName
-                                        textFormat: Text.PlainText
-                                        color: "#70CBFF"
-                                        font.family: "Consolas"
-                                        font.pixelSize: 12
-                                        font.weight: Font.DemiBold
-                                    }
+                                Rectangle {
+                                    Layout.preferredWidth: 34
+                                    Layout.preferredHeight: 34
+                                    Layout.alignment: Qt.AlignTop
+                                    radius: 17
+                                    color: root.avatarSurface
 
                                     Text {
-                                        text:
-                                            messageRow.modelData.time
-                                        color: "#65798B"
+                                        anchors.centerIn: parent
+                                        text: String(
+                                            messageRow.modelData.sender
+                                            || root.accountName
+                                        ).substring(0, 2).toUpperCase()
+                                        color: root.accent
                                         font.family: "Consolas"
-                                        font.pixelSize: 9
+                                        font.pixelSize: 10
+                                        font.weight: Font.Bold
                                     }
                                 }
 
-                                Text {
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: messageRow.modelData.body
-                                    textFormat: Text.PlainText
-                                    color: "#DDE6EE"
-                                    font.family: "Consolas"
-                                    font.pixelSize: 13
-                                    wrapMode: Text.Wrap
-                                    lineHeight: 1.3
+                                    spacing: 5
+
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 9
+
+                                        Text {
+                                            Layout.maximumWidth: Math.max(
+                                                0,
+                                                messageRow.width - 46
+                                                - messageTimestamp.implicitWidth - 18
+                                            )
+                                            text: messageRow.modelData.sender
+                                                  || root.accountName
+                                            textFormat: Text.PlainText
+                                            color: root.chatSender
+                                            font.family: "Consolas"
+                                            font.pixelSize: 14
+                                            font.weight: Font.Bold
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            id: messageTimestamp
+                                            Layout.minimumWidth: implicitWidth
+                                            text: messageRow.modelData.time
+                                            color: root.chatMuted
+                                            font.family: "Consolas"
+                                            font.pixelSize: 11
+                                        }
+
+                                        Item {
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: messageRow.modelData.body
+                                        textFormat: Text.PlainText
+                                        color: root.chatText
+                                        font.family: "Consolas"
+                                        font.pixelSize: root.chatFontSize
+                                        wrapMode: Text.Wrap
+                                        lineHeight: 1.3
+                                    }
                                 }
                             }
                         }
@@ -1973,7 +2298,7 @@ ApplicationWindow {
 
                     text: root.messageStatus
                     textFormat: Text.PlainText
-                    color: "#FFB86B"
+                    color: root.warning
                     font.family: "Consolas"
                     font.pixelSize: 11
                     wrapMode: Text.Wrap
@@ -1990,7 +2315,7 @@ ApplicationWindow {
                     visible: root.currentChat !== null
 
                     radius: 7
-                    color: "#18222C"
+                    color: root.chatInputBackground
 
                     RowLayout {
                         anchors.fill: parent
@@ -2002,17 +2327,17 @@ ApplicationWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
-                            enabled: !root.sendBusy
+                            readOnly: root.sendBusy || root.historyBusy
                             placeholderText:
                                 root.currentChat
                                 ? "Message @" + root.currentChat.name
                                 : ""
-                            placeholderTextColor: "#71869A"
-                            color: "#E8EEF5"
-                            selectionColor: "#245F86"
-                            selectedTextColor: "#FFFFFF"
+                            placeholderTextColor: root.chatMuted
+                            color: root.chatText
+                            selectionColor: root.selection
+                            selectedTextColor: root.selectedText
                             font.family: "Consolas"
-                            font.pixelSize: 13
+                            font.pixelSize: root.chatFontSize
 
                             leftPadding: 6
                             rightPadding: 6
@@ -2033,7 +2358,7 @@ ApplicationWindow {
                             Layout.fillHeight: true
 
                             enabled:
-                                !root.sendBusy
+                                !root.sendBusy && !root.historyBusy && !root.chatBusy
                                 && composer.text.trim().length > 0
 
                             hoverEnabled: enabled
@@ -2043,8 +2368,8 @@ ApplicationWindow {
                                 text: root.sendBusy ? "..." : "SEND"
 
                                 color: sendButton.enabled
-                                       ? "#07131D"
-                                       : "#9FB1C0"
+                                       ? (root.lightChat ? "#FFFFFF" : "#07131D")
+                                       : root.muted
 
                                 font.family: "Consolas"
                                 font.pixelSize: 11
@@ -2057,17 +2382,17 @@ ApplicationWindow {
                                 radius: 6
 
                                 color: !sendButton.enabled
-                                       ? "#1D2B36"
+                                       ? root.surface
                                        : sendButton.down
-                                         ? "#329FDE"
+                                         ? root.accentPressed
                                          : sendButton.hovered
-                                           ? "#7ACBFF"
-                                           : "#55BDFF"
+                                           ? root.accentHover
+                                           : root.accent
 
                                 border.width:
                                     sendButton.enabled ? 0 : 1
 
-                                border.color: "#304452"
+                                border.color: root.divider
 
                                 Behavior on color {
                                     ColorAnimation {
@@ -2080,6 +2405,151 @@ ApplicationWindow {
                                 root.sendCurrentMessage()
                         }
                     }
+                }
+            }
+        }
+    }
+
+    Popup {
+        id: settingsDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+
+        width: Math.min(420, parent.width - 40)
+        padding: 24
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        Overlay.modal: Rectangle {
+            color: root.scrim
+        }
+
+        background: Rectangle {
+            color: root.surface
+            radius: 10
+            border.color: root.divider
+        }
+
+        contentItem: ColumnLayout {
+            spacing: 14
+
+            Text {
+                text: "Settings"
+                color: root.foreground
+                font.family: "Consolas"
+                font.pixelSize: 22
+                font.bold: true
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "Customize your appearance."
+                color: root.muted
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                text: "Appearance"
+                color: root.foreground
+                font.pixelSize: 14
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                AppButton {
+                    Layout.fillWidth: true
+                    text: "Dark"
+                    primary: !root.lightChat
+                    onClicked: root.lightChat = false
+                }
+
+                AppButton {
+                    Layout.fillWidth: true
+                    text: "Light"
+                    primary: root.lightChat
+                    onClicked: root.lightChat = true
+                }
+            }
+
+            Text {
+                text: "Message font size"
+                color: root.foreground
+                font.pixelSize: 14
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                AppButton {
+                    Layout.fillWidth: true
+                    text: "Small"
+                    primary: root.chatFontSize === 13
+                    onClicked: root.chatFontSize = 13
+                }
+
+                AppButton {
+                    Layout.fillWidth: true
+                    text: "Default"
+                    primary: root.chatFontSize === 16
+                    onClicked: root.chatFontSize = 16
+                }
+
+                AppButton {
+                    Layout.fillWidth: true
+                    text: "Large"
+                    primary: root.chatFontSize === 20
+                    onClicked: root.chatFontSize = 20
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: previewText.implicitHeight + 32
+                radius: 6
+                color: root.chatBackground
+
+                Text {
+                    id: previewText
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    text: "This is how your messages will look."
+                    color: root.chatText
+                    font.family: "Consolas"
+                    font.pixelSize: root.chatFontSize
+                    wrapMode: Text.Wrap
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "Preferences reset when you close the app."
+                color: root.muted
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                AppButton {
+                    text: "Reset"
+                    onClicked: {
+                        root.lightChat = false
+                        root.chatFontSize = 16
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                AppButton {
+                    text: "Done"
+                    primary: true
+                    onClicked: settingsDialog.close()
                 }
             }
         }
@@ -2117,11 +2587,11 @@ ApplicationWindow {
               | Popup.CloseOnPressOutside
 
         Overlay.modal: Rectangle {
-            color: "#B305090D"
+            color: root.scrim
         }
 
         background: Rectangle {
-            color: "#141B24"
+            color: root.surface
             radius: 10
         }
 
@@ -2130,7 +2600,7 @@ ApplicationWindow {
 
             Text {
                 text: "New conversation"
-                color: "#E8EEF5"
+                color: root.foreground
                 font.family: "Consolas"
                 font.pixelSize: 18
                 font.weight: Font.DemiBold
@@ -2140,7 +2610,7 @@ ApplicationWindow {
                 Layout.topMargin: 8
                 Layout.bottomMargin: 22
                 text: "Enter a username"
-                color: "#8193A5"
+                color: root.muted
                 font.family: "Consolas"
                 font.pixelSize: 11
             }
@@ -2152,10 +2622,10 @@ ApplicationWindow {
 
                 enabled: !root.chatBusy
                 placeholderText: "Username"
-                placeholderTextColor: "#71869A"
-                color: "#E8EEF5"
-                selectionColor: "#245F86"
-                selectedTextColor: "#FFFFFF"
+                placeholderTextColor: root.muted
+                color: root.foreground
+                selectionColor: root.selection
+                selectedTextColor: root.selectedText
                 font.family: "Consolas"
                 font.pixelSize: 13
 
@@ -2167,10 +2637,10 @@ ApplicationWindow {
 
                 background: Rectangle {
                     radius: 6
-                    color: "#1A2530"
+                    color: root.chatInputBackground
                     border.color:
                         recipientField.activeFocus
-                        ? "#55BDFF" : "transparent"
+                        ? root.accent : "transparent"
                     border.width: 2
                 }
 
@@ -2208,7 +2678,7 @@ ApplicationWindow {
 
                 text: root.chatStatus
                 textFormat: Text.PlainText
-                color: "#FFB86B"
+                color: root.warning
                 font.family: "Consolas"
                 font.pixelSize: 11
                 wrapMode: Text.Wrap
@@ -2230,7 +2700,7 @@ ApplicationWindow {
 
                     contentItem: Text {
                         text: "Cancel"
-                        color: "#E8EEF5"
+                        color: root.foreground
                         font.family: "Consolas"
                         font.pixelSize: 12
                         horizontalAlignment: Text.AlignHCenter
@@ -2240,10 +2710,10 @@ ApplicationWindow {
                     background: Rectangle {
                         radius: 6
                         color: cancelChatButton.down
-                               ? "#202D39"
+                               ? root.pressedSurface
                                : cancelChatButton.hovered
-                                 ? "#243441"
-                                 : "#1A2530"
+                                 ? root.hoverSurface
+                                 : root.surface
                     }
 
                     onClicked: newChatDialog.close()
@@ -2254,7 +2724,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 42
 
-                    enabled: !root.chatBusy && !root.sendBusy
+                    enabled: !root.chatBusy && !root.sendBusy && !root.historyBusy
                     hoverEnabled: true
                     opacity: enabled ? 1 : 0.45
 
@@ -2262,7 +2732,7 @@ ApplicationWindow {
                         text: root.chatBusy
                               ? "Starting..."
                               : "Start chat"
-                        color: "#07131D"
+                        color: root.lightChat ? "#FFFFFF" : "#07131D"
                         font.family: "Consolas"
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
@@ -2273,10 +2743,10 @@ ApplicationWindow {
                     background: Rectangle {
                         radius: 6
                         color: startButton.down
-                               ? "#329FDE"
+                               ? root.accentPressed
                                : startButton.hovered
-                                 ? "#7ACBFF"
-                                 : "#55BDFF"
+                                 ? root.accentHover
+                                 : root.accent
                     }
 
                     onClicked: newChatDialog.submit()
