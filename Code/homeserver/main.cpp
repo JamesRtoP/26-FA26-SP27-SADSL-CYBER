@@ -114,9 +114,8 @@ int main(int argc, char *argv[])
         });
 
     // Sending a message or starting a chat: the client POSTs an event here.
-    // The lambda now also captures pushServer so it can notify connected recipients.
     server.route("/user/events", QHttpServerRequest::Method::Post, [&database, &pushServer](const QHttpServerRequest &request)
-     {
+    {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
         {
