@@ -19,7 +19,7 @@ endif()
 #--Make Crytography folder into a static library--
 qt_add_library(Q3Crypto STATIC
     cryptography_primatives.h   cryptography_primatives.cpp
-    SecretData.h SecretData.cpp
+    SecretData.h
 
     clientkeystorage.h clientkeystorage.cpp
     sharedKeyBytesStorage.h sharedKeyBytesStorage.cpp
