@@ -138,6 +138,7 @@ namespace Q3Crypto
     EVP_PKEY_ML_KEM_1024_ptr decodePrivateML_KEM_1024(const SecretData<PrivateKeySizeML_KEM_1024 + 1>& encoded);
 
 
+
 }
 
 #endif // CRYPTOGRAPHY_PRIMATIVES_H

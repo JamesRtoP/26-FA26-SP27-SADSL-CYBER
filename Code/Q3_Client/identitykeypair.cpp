@@ -23,7 +23,7 @@ namespace Q3Crypto
         return returnMe;
     }
 
-    prekeyWithIdentifierSignedBytesML_KEM_1024 IdentityKeyPair::signPublicPrekeyML_KEM_1024(prekeyWithIdentifierML_KEM_1024 keyWithID)
+    prekeyWithIdentifierSignedBytesML_KEM_1024 IdentityKeyPair::signPublicPrekeyML_KEM_1024(const prekeyWithIdentifierML_KEM_1024& keyWithID)
     {
         prekeyWithIdentifierSignedBytesML_KEM_1024 returnMe;
         returnMe.identifier = keyWithID.identifier;
@@ -32,7 +32,7 @@ namespace Q3Crypto
         return returnMe;
     }
 
-    prekeyWithIdentifierSignedBytesX25519 IdentityKeyPair::signPublicPrekeyX25519(prekeyWithIdentifierX25519 keyWithID)
+    prekeyWithIdentifierSignedBytesX25519 IdentityKeyPair::signPublicPrekeyX25519(const prekeyWithIdentifierX25519& keyWithID)
     {
         prekeyWithIdentifierSignedBytesX25519 returnMe;
         returnMe.identifier = keyWithID.identifier;
@@ -42,7 +42,7 @@ namespace Q3Crypto
     }
 
     // Redo signing algorithm for speed of signing
-    std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> IdentityKeyPair::signBulkPublicPrekeysML_KEM_1024(std::vector<prekeyWithIdentifierML_KEM_1024> inList)
+    std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> IdentityKeyPair::signBulkPublicPrekeysML_KEM_1024(const std::vector<prekeyWithIdentifierML_KEM_1024> &inList)
     {
         std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> outList;
 
@@ -90,7 +90,7 @@ namespace Q3Crypto
         return outList;
     }
 
-    std::vector<prekeyWithIdentifierSignedBytesX25519> IdentityKeyPair::signBulkPublicPrekeysX25519(std::vector<prekeyWithIdentifierX25519> inList)
+    std::vector<prekeyWithIdentifierSignedBytesX25519> IdentityKeyPair::signBulkPublicPrekeysX25519(const std::vector<prekeyWithIdentifierX25519>& inList)
     {
         std::vector<prekeyWithIdentifierSignedBytesX25519> outList;
 

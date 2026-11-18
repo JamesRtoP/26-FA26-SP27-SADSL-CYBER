@@ -10,7 +10,9 @@
 
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
-{}
+{
+    this->keys = nullptr;
+}
 
 /*
  * Sends a registration request to the homeserver
@@ -23,9 +25,16 @@ void ClientService::registerUser(const QString &username,
 
     // tells HTTP request that body will contain JSON
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    this->keys = std::make_unique<Q3Crypto::ClientKeyStorage>();
+
+    Q3Crypto::SharedKeyBytesStorage shareMe = this->keys->getKeyBytes();
+
     QJsonObject data;
     data["username"] = username;
     data["password"] = password;
+    //GGG add json conversion for shareMe;
+
 
     // wrap JSON object in JSON document of bytes
     QByteArray jsonData = QJsonDocument(data).toJson(QJsonDocument::Compact);
@@ -43,6 +52,7 @@ void ClientService::registerUser(const QString &username,
             emit registrationSucceeded();
         } else{
             emit registrationFailed(response);
+            this->keys = nullptr;
         }
         reply->deleteLater();
     });
