@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QSet>              // a user can have several sockets, with no duplicates
 #include <QWebSocketServer>
+#include <QJsonObject>
+#include <QList>
 
 class Database;
 class QWebSocket;
@@ -28,6 +30,11 @@ public:
     explicit PushServer(Database &database, QObject *parent = nullptr);   // new: takes database
 
     bool listen(quint16 port);
+    // Send a stored event to every connected device of each recipient.
+    //   userIds: the recipients. Users who aren't connected are skipped.
+    //   eventId: the event's ID in the database.
+    //   body:    the event content to deliver (must not contain secrets like tokens).
+    void pushEvent(const QList<qint64> &userIds, qint64 eventId, const QJsonObject &body);
 
 private:
     void onNewConnection();

@@ -124,3 +124,25 @@ void PushServer::onDisconnected(QWebSocket *socket)
     // deleteLater() deletes it safely once Qt is finished with it.
     socket->deleteLater();
 }
+
+void PushServer::pushEvent(const QList<qint64> &userIds, qint64 eventId, const QJsonObject &body)
+{
+    // Build the message once: {"type":"event","id":42,"body":{...}}
+    const QJsonObject message{{"type", "event"}, {"id", eventId}, {"body", body}};
+    // Compact means no extra spaces or line breaks, which keeps the message small.
+    const QString text = QString::fromUtf8(QJsonDocument(message).toJson(QJsonDocument::Compact));
+
+    // The same user can appear twice (for example when someone messages themselves),
+    // so remove duplicates first. A QSet keeps each ID only once.
+    const QSet<qint64> recipients(userIds.begin(), userIds.end());
+
+    for (qint64 userId : recipients) {
+        // All of this user's connected devices. If they're offline the set is empty and
+        // nothing is sent. They'll catch up on missed messages in the client step.
+        // value() returns a copy, which keeps this loop safe even if a send closes a socket.
+        const QSet<QWebSocket *> sockets = m_userSockets.value(userId);
+        for (QWebSocket *socket : sockets) {
+            socket->sendTextMessage(text);
+        }
+    }
+}

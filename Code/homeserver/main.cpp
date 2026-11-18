@@ -113,14 +113,21 @@ int main(int argc, char *argv[])
                 QHttpServerResponse::StatusCode::Ok);
         });
 
-    server.route("/user/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
-    {
+    // Sending a message or starting a chat: the client POSTs an event here.
+    // The lambda now also captures pushServer so it can notify connected recipients.
+    server.route("/user/events", QHttpServerRequest::Method::Post, [&database, &pushServer](const QHttpServerRequest &request)
+     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
         {
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
         QJsonObject event = doc.object();
+
+        // The client includes its session token in the request. That token is a password
+        // for its account, so it must never be stored with the event or sent to the
+        // recipient. Remove it before doing anything else with the event.
+        event.remove("authToken");
 
         QList<qint64> userIDs;
         userIDs.append(database.user(event.value("sender").toString())->id);
@@ -130,14 +137,19 @@ int main(int argc, char *argv[])
             return QHttpServerResponse("Recipient Does Not Exist", QHttpServerResponse::StatusCode::InternalServerError);
         }
         userIDs.append(storedUser->id);
-        std::optional<qint64> id = database.addEvent(event);
 
-        std::optional<qint64> id2 = database.addEventForUsers(event,userIDs);
-        if(!id || !id2)
+        // Store the event once and add it to both the sender's and recipient's inboxes.
+        std::optional<qint64> id = database.addEventForUsers(event, userIDs);
+        if(!id)
         {
             qWarning() << "Failed to store event:" << database.lastError();
             return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
         }
+
+        // Tell any recipient who is connected right now. The event is already saved,
+        // so anyone who is offline will still get it later.
+        pushServer.pushEvent(userIDs, *id, event);
+
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
