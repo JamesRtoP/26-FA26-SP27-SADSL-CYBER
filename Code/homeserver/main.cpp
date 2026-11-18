@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
     Database database; // events are stored in PostgreSQL
-    PushServer pushServer; // live updates over WebSocket, separate from the HTTP server
+    PushServer pushServer(database); // live updates over WebSocket, separate from the HTTP server
 
     if(!database.open())
     {

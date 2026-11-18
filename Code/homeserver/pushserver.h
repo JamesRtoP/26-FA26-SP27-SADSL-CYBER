@@ -1,41 +1,49 @@
 #ifndef PUSHSERVER_H
 #define PUSHSERVER_H
 
+#include <QHash>             // lookup tables
 #include <QObject>
+#include <QSet>              // a user can have several sockets, with no duplicates
 #include <QWebSocketServer>
+
+class Database;
+class QWebSocket;
 
 /*
  * PushServer lets the homeserver talk to clients first.
+ * (HTTP is like mail, WebSocket is like a phone call)
  *
- * Normal HTTP works like mail: the client asks, the server answers, and the
- * conversation ends. That means the server can't tell a client "you have a new
- * message" on its own.
- *
- * A WebSocket is more like a phone call. The client connects once and the
- * connection stays open, so the server can send data down it whenever it wants.
- *
- * Right now this class only accepts connections. Later steps will add
- * authentication and sending messages.
+ * How a client uses it:
+ *   1. The client connects.
+ *   2. The client's first message must be {"type":"auth","authToken":"..."}.
+ *   3. If the token is valid, the server replies {"type":"authenticated"} and
+ *      remembers which user is on this connection.
  */
 class PushServer : public QObject
 {
-    // Required for any class that uses Qt signals and slots
     Q_OBJECT
 
 public:
-    explicit PushServer(QObject *parent = nullptr);
+    // The server needs the database to check whether a session token is valid.
+    explicit PushServer(Database &database, QObject *parent = nullptr);   // new: takes database
 
-    // Start accepting WebSocket connections on the given port.
-    // Returns true if it worked, false if it failed (for example, the port is taken).
     bool listen(quint16 port);
 
 private:
-    // Runs every time a new client connects
     void onNewConnection();
+    void onTextMessage(QWebSocket *socket, const QString &text);   // Client sends text
+    void onDisconnected(QWebSocket *socket);                       // Client leaves
 
-    // Does the actual listening. Same idea as the QTcpServer in main.cpp,
-    // but it speaks the WebSocket protocol.
+    Database &m_database;
     QWebSocketServer m_server;
+
+    // Table 1: "which sockets belong to user 7?" Used when pushing messages.
+    // A user can be logged in on several devices, so each user maps to a SET of sockets.
+    QHash<qint64, QSet<QWebSocket *>> m_userSockets;
+
+    // Table 2: Used for cleanup when a socket disconnects.
+    // Only sockets that have proven who they are appear here.
+    QHash<QWebSocket *, qint64> m_socketUsers;
 };
 
 #endif // PUSHSERVER_H
