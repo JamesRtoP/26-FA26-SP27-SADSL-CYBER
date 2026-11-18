@@ -14,6 +14,7 @@
 #include "database.h"
 #include "passwordhasher.h"
 #include "demoUser.h"
+#include "pushserver.h"
 
 QString healthCheck(){
     return "OK";
@@ -25,6 +26,7 @@ int main(int argc, char *argv[])
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
     Database database; // events are stored in PostgreSQL
+    PushServer pushServer; // live updates over WebSocket, separate from the HTTP server
 
     if(!database.open())
     {
@@ -40,6 +42,14 @@ int main(int argc, char *argv[])
     }
     else{
         qDebug() << "Listening on port" << tcpServer.serverPort();
+    }
+
+    // Start the WebSocket server on port 8081 (the HTTP server uses 8080).
+    // Clients will connect here and keep the connection open to receive new messages.
+    if (!pushServer.listen(8081)) {
+        qCritical() << "Push server failed to start on port 8081";
+    } else {
+        qDebug() << "Push server listening on port 8081";
     }
 
     // When someone requests /health, run healthCheck()

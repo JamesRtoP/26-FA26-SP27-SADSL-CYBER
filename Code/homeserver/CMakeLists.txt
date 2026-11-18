@@ -5,9 +5,10 @@ project(homeserver VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 
-find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql)
+# Qt modules the homeserver uses: Quick for the QML window, HttpServer for the web
+# routes, Sql for the PostgreSQL database, and WebSockets for live updates to clients.
+find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql WebSockets)
 find_package(OpenSSL REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
@@ -21,6 +22,8 @@ qt_add_executable(apphomeserver
     main.cpp
     database.h
     database.cpp
+    pushserver.h      # new: live WebSocket updates
+    pushserver.cpp
 )
 
 qt_add_qml_module(apphomeserver
@@ -47,6 +50,7 @@ target_link_libraries(apphomeserver
     PRIVATE Qt6::Quick
     PRIVATE Qt6::HttpServer
     PRIVATE Qt6::Sql
+    PRIVATE Qt6::WebSockets   # new: lets us use QWebSocketServer
     PRIVATE OpenSSL::Crypto
 )
 
