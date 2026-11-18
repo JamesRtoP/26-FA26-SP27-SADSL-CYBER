@@ -6,6 +6,7 @@
 #include <QNetworkAccessManager>
 #include <QVariantList>
 #include <memory>
+#include <QWebSocket>
 
 #include "clientdatabase.h"
 
@@ -64,6 +65,8 @@ private:
 
     // One local SQLite database per signed-in account.
     std::unique_ptr<ClientDatabase> database;
+    // The open WebSocket line to the homeserver
+    QWebSocket liveSocket;
 };
 
 #endif // CLIENTSERVICE_H
