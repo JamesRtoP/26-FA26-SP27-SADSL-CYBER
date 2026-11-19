@@ -1,6 +1,7 @@
 #ifndef CLIENTSERVICE_H
 #define CLIENTSERVICE_H
 
+#include <QTimer>
 #include <QString>
 #include <QObject>
 #include <QNetworkAccessManager>
@@ -68,8 +69,16 @@ private:
 
     // One local SQLite database per signed-in account.
     std::unique_ptr<ClientDatabase> database;
+
     // The open WebSocket line to the homeserver
     QWebSocket liveSocket;
+
+    // Reconnect state for live socket.
+    QTimer reconnectTimer; // fires when it's time to try connecting again
+    int reconnectDelayMs = 1000; // current wait, doubles after each failed attempt
+    bool wantLive = false; // true while a user is logged in
+
+
 
     // Opens the WebSocket connection to the homeerver's push port
     void connectLive();
@@ -80,6 +89,9 @@ private:
     // Applies one event from the homeserver. Stores it locally and tells the UI.
     // Called when events are pushed over the live socket
     void processEvent(qint64 id, const QJsonObject &body);
+
+    // Schedules another live-connection attempt after a growing delay
+    void scheduleReconnect();
 };
 
 #endif // CLIENTSERVICE_H

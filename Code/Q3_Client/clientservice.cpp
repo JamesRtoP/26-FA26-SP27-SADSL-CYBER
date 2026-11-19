@@ -8,6 +8,9 @@
 #include <Qurl>
 #include <QDateTime>
 
+// Longest we ever wait between reconnect attempts
+static constexpr int MaxReconnectDelayMs = 30000;
+
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
 {
@@ -26,6 +29,19 @@ ClientService::ClientService(QObject *parent)
     // handleLiveMessage
     connect(&liveSocket, &QWebSocket::textMessageReceived,
                 this, &ClientService::handleLiveMessage);
+
+    // The retry timer fires once per attempt. When it fires, try to connect.
+    reconnectTimer.setSingleShot(true);
+    connect(&reconnectTimer, &QTimer::timeout,
+            this, &ClientService::connectLive);
+
+    // If the live connection closes, or an attempt to open it fails, schedule
+    // a retry. A failed attempt (for example, the server is down) may report
+    // an error without a clean "disconnected", so we listen for both.
+    connect(&liveSocket, &QWebSocket::disconnected,
+            this, &ClientService::scheduleReconnect);
+    connect(&liveSocket, &QWebSocket::errorOccurred,
+            this, &ClientService::scheduleReconnect);
 }
 
 /*
@@ -348,6 +364,16 @@ bool ClientService::openDatabase(const QString &username){
  */
 void ClientService::connectLive()
 {
+    // Connection should be kept alive. If it drops, the
+    // reconnect logic will retry.
+    wantLive = true;
+
+    // Don't dial again if already connected or an attempt is in
+    // progress.
+    if (liveSocket.state() != QAbstractSocket::UnconnectedState) {
+        return;
+    }
+
     // The homeserer uses port 8080 for HTTP and port 8081 for live
     // WebSockets connections. "ws://" is the WebSocket version of "http://"
     liveSocket.open(QUrl("ws://127.0.0.1:8081"));
@@ -372,6 +398,9 @@ void ClientService::handleLiveMessage(const QString &text)
     const QString type = message.value("type").toString();
 
     if (type == "authenticated"){
+        // The connection is healthy again, so the next failure starts from a
+        // short wait instead of the long one.
+        reconnectDelayMs = 1000;
         qDebug() << "Live connection authenticated";
     } else if (type == "event"){
         processEvent(message.value("id").toInteger(),
@@ -414,6 +443,22 @@ void ClientService::processEvent(qint64 id, const QJsonObject &body)
         }
         emit messageReceived(sender, text, sentAt);
     }
-
-
 }
+
+/*
+ * Schedules another connection attempt after a delay that doubles each time
+ * (1s, 2s, 4s ... up to MaxReconnectDelayMs).
+ *
+ * Does nothing if we are not supposed to be connected, or if an attempt is
+ * already scheduled.
+ */
+void ClientService::scheduleReconnect()
+{
+    if (!wantLive || reconnectTimer.isActive()) {
+        return;
+    }
+    qDebug() << "Live connection lost; retrying in" << reconnectDelayMs << "ms";
+    reconnectTimer.start(reconnectDelayMs);
+    reconnectDelayMs = qMin(reconnectDelayMs * 2, MaxReconnectDelayMs);
+}
+
