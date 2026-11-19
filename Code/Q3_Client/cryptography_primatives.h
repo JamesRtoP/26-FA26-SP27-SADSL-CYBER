@@ -3,6 +3,7 @@
 
 #include <openssl/evp.h>
 #include "SecretData.h"
+#include "identitykeypublic.h"
 //#include "EncodeAndDecode.h"
 
 #include <vector>
@@ -91,19 +92,17 @@ namespace Q3Crypto
 
     struct AES_256Result
     {
-        std::array<uint8_t, 12> nonce{};
+        std::array<uint8_t, 12> nonce;
         std::vector<uint8_t> ciphertext;
-        std::array<uint8_t, 16> tag{};
+        std::array<uint8_t, 16> tag;
     };
-
-
 
     std::vector<uint8_t> hexToBytes(const std::string& hex);
     std::array<uint8_t, 64> sha512(const std::vector<uint8_t>& plaintext);
 
     EVP_PKEY_X25519_ptr generateX25519Key();
     std::vector<prekeyWithIdentifierX25519> generatePreKeysX25519(int count, int& identiferStart);
-    SecretData<32> generateX25519SharedSecret(EVP_PKEY_X25519_ptr peerPublicKey, EVP_PKEY_X25519_ptr privateKey);
+    SecretData<32> generateX25519SharedSecret(const EVP_PKEY_X25519_ptr& privateKey, const EVP_PKEY_X25519_ptr& peerPublicKey);
 
     EVP_PKEY_Ed25519_ptr generateEd25519Key();
     std::array<uint8_t, 64> signWithEd25519(EVP_PKEY_Ed25519_ptr& key, const std::span<const std::uint8_t>& plaintext);
@@ -114,8 +113,8 @@ namespace Q3Crypto
 
     EVP_PKEY_ML_KEM_1024_ptr generateML_KEM_1024Key();
     std::vector<prekeyWithIdentifierML_KEM_1024> generatePreKeysML_KEM_1024(int count, int& identiferStart);
-    ML_KEM_1024Result encapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr peerPublicKey);
-    SecretData <32> decapsulateWithML_KEM_1024(EVP_PKEY_ML_KEM_1024_ptr privateKey, const std::array<uint8_t, 1568>& ciphertext);
+    ML_KEM_1024Result encapsulateWithML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& peerPublicKey);
+    SecretData <32> decapsulateWithML_KEM_1024(const EVP_PKEY_ML_KEM_1024_ptr& privateKey, const std::array<uint8_t, 1568>& ciphertext);
 
     AES_256Result encryptWithAES_256_GCM(const SecretData <32>& key, const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& associatedData);
     std::vector<uint8_t> decryptWithAES_256_GCM(const SecretData <32>& key, const AES_256Result& encrypted, const std::vector<uint8_t>& associatedData);
@@ -137,7 +136,9 @@ namespace Q3Crypto
     EVP_PKEY_Ed25519_ptr decodePrivateEd25519(SecretData<PrivateKeySizeEd25519 + 1> encoded);
     EVP_PKEY_ML_KEM_1024_ptr decodePrivateML_KEM_1024(const SecretData<PrivateKeySizeML_KEM_1024 + 1>& encoded);
 
+    SecretData<160> concatinateKDFInputs(SecretData<32>& DH_1,SecretData<32>& DH_2,SecretData<32>& DH_3,SecretData<32>& DH_4,SecretData<32>& SS);
 
+    std::vector<uint8_t> generateAD(const IdentityKeyPublic& IK_A, const IdentityKeyPublic& IK_B, const EVP_PKEY_ML_KEM_1024_ptr& PQPK_B);
 
 }
 
