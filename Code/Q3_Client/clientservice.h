@@ -50,6 +50,9 @@ signals:
     void messageSent();
     void messageFailed(const QString &message);
 
+    void messageReceived(const QString &sender, const QString &body,
+                            const QDateTime &sentAt);
+
     void eventsLoaded(const QVariantList &events);
     void eventsLoadFailed(const QString &message);
 
@@ -67,6 +70,16 @@ private:
     std::unique_ptr<ClientDatabase> database;
     // The open WebSocket line to the homeserver
     QWebSocket liveSocket;
+
+    // Opens the WebSocket connection to the homeerver's push port
+    void connectLive();
+
+    // Handles one text message pushed by the homeserver on the live socket
+    void handleLiveMessage(const QString &text);
+
+    // Applies one event from the homeserver. Stores it locally and tells the UI.
+    // Called when events are pushed over the live socket
+    void processEvent(qint64 id, const QJsonObject &body);
 };
 
 #endif // CLIENTSERVICE_H

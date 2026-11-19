@@ -10,7 +10,23 @@
 
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
-{}
+{
+    // When the live connection opens, tell the server who we are.
+    // The server drops connections that don't authenticate quickly.
+    connect(&liveSocket, &QWebSocket::connected, this, [this](){
+        QJsonObject auth;
+        auth["type"] = "auth";
+        auth["authToken"] = authToken;
+
+        liveSocket.sendTextMessage(QString::fromUtf8(
+            QJsonDocument(auth).toJson(QJsonDocument::Compact)));
+    });
+
+    // Every message the server pushes down the live connection goes to
+    // handleLiveMessage
+    connect(&liveSocket, &QWebSocket::textMessageReceived,
+                this, &ClientService::handleLiveMessage);
+}
 
 /*
  * Sends a registration request to the homeserver
@@ -81,6 +97,7 @@ void ClientService::loginUser(const QString &username, const QString &password)
                         this->authToken = authToken;
                         this->currentUsername = username;
                         emit loginSucceeded(authToken);
+                        connectLive(); // Login worked, so open the live connection for pushed events
                     }
                 } else{
                     emit loginFailed("Authentication token missing");
@@ -320,4 +337,83 @@ bool ClientService::openDatabase(const QString &username){
     }
     database = std::move(userDatabase);
     return true;
+}
+
+/*
+ * Opens the live WebSocket connection to the homeserver
+ *
+ * The connection stays open so the server can push new events to us that
+ * moment they happen. This only starts the connection and returns immediately.
+ * The socket's connected() signal firess once it is ready.
+ */
+void ClientService::connectLive()
+{
+    // The homeserer uses port 8080 for HTTP and port 8081 for live
+    // WebSockets connections. "ws://" is the WebSocket version of "http://"
+    liveSocket.open(QUrl("ws://127.0.0.1:8081"));
+}
+
+/*
+ * Handles one message pushed by the homeserver on the live socket.
+ *
+ * Every message is a JSON object with a "type" field:
+ *      "authenticated" -> the server accepted our token
+ *      "event" -> a new event (chat message/request) for us
+ *      "error" -> server rejected something and will close socket
+ */
+void ClientService::handleLiveMessage(const QString &text)
+{
+    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8());
+    if (!doc.isObject()){
+        return; // not JSON we understand, so ignore it
+    }
+
+    const QJsonObject message = doc.object();
+    const QString type = message.value("type").toString();
+
+    if (type == "authenticated"){
+        qDebug() << "Live connection authenticated";
+    } else if (type == "event"){
+        processEvent(message.value("id").toInteger(),
+                     message.value("body").toObject());
+    } else if (type == "error") {
+        qWarning() << "Live connection error:" << message.value("message").toString();
+    }
+}
+
+/*
+ * Applies one event from the homeserver. Stores it locally and tells the UI.
+ */
+void ClientService::processEvent(qint64 id, const QJsonObject &body)
+{
+    if(!database) {
+        return; // Not logged in, so there is no local database to store into
+    }
+
+    const QString sender = body.value("sender").toString();
+    const QString eventType = body.value("eventType").toString();
+
+    // ensures we don't store our messages twice if server sends ours back to us
+    if(sender.compare(currentUsername, Qt::CaseInsensitive) == 0){
+        return;
+    }
+
+    if(eventType == "message"){
+        QDateTime sentAt = QDateTime::fromString(body.value("timestamp").toString(), Qt::ISODate);
+        if(!sentAt.isValid()){
+            sentAt = QDateTime::currentDateTimeUtc();
+        }
+        const QString text = body.value("data").toString(); //TO-DO: Decrypt message
+
+        // Make sure sender is in our contacts, then store message
+        const std::optional<qint64> contactId = database->addContact(sender);
+        if(!contactId || !database->addMessage(*contactId, MessageDirection::Incoming,
+                                                  text, sentAt, MessageStatus::Sent, id)){
+            qWarning() << "Failed to store incoming message:" << database ->lastError();
+            return;
+        }
+        emit messageReceived(sender, text, sentAt);
+    }
+
+
 }
