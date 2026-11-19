@@ -78,8 +78,6 @@ private:
     int reconnectDelayMs = 1000; // current wait, doubles after each failed attempt
     bool wantLive = false; // true while a user is logged in
 
-
-
     // Opens the WebSocket connection to the homeerver's push port
     void connectLive();
 
@@ -92,6 +90,15 @@ private:
 
     // Schedules another live-connection attempt after a growing delay
     void scheduleReconnect();
+
+    /** Highest homeserver event ID this account has processed (0 if none). */
+    qint64 lastEventId();
+
+    /** Saves id as the catch-up bookmark if it is newer than the stored one. */
+    void rememberEventId(qint64 id);
+
+    /** Fetches events newer than our bookmark and processes them. */
+    void syncEvents();
 };
 
 #endif // CLIENTSERVICE_H

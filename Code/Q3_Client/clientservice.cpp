@@ -11,6 +11,9 @@
 // Longest we ever wait between reconnect attempts
 static constexpr int MaxReconnectDelayMs = 30000;
 
+/** How many events the homeserver returns per request (its default page size). */
+static constexpr int EventPageSize = 100;
+
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
 {
@@ -113,7 +116,6 @@ void ClientService::loginUser(const QString &username, const QString &password)
                         this->authToken = authToken;
                         this->currentUsername = username;
                         emit loginSucceeded(authToken);
-                        connectLive(); // Login worked, so open the live connection for pushed events
                     }
                 } else{
                     emit loginFailed("Authentication token missing");
@@ -249,6 +251,10 @@ void ClientService::loadEvents()
         jsonData);
 
     connect(reply, &QNetworkReply::finished, this,[this, reply]() {
+        // Start the live connection only now. The history below sets the
+        // catch-up bookmark synchronously, so by the time the connection
+        // authenticates and syncs, it already knows what the UI has loaded.
+        connectLive();
         const int statusCode = reply->attribute(
                                         QNetworkRequest::HttpStatusCodeAttribute
                                         ).toInt();
@@ -298,9 +304,13 @@ void ClientService::loadEvents()
             // Homeserver returns { "id": ..., "body": {...} }.
             if (wrapper.value("body").isObject()) {
                 event = wrapper.value("body").toObject();
-
-                if (wrapper.contains("id"))
+                if (wrapper.contains("id")) {
                     event["id"] = wrapper.value("id");
+
+                    // History loaded at login counts as "seen", so catch-up
+                    // only fetches what is newer than this.
+                    rememberEventId(wrapper.value("id").toInteger());
+                }
             } else {
                 event = wrapper;
             }
@@ -402,9 +412,16 @@ void ClientService::handleLiveMessage(const QString &text)
         // short wait instead of the long one.
         reconnectDelayMs = 1000;
         qDebug() << "Live connection authenticated";
+
+        // Fetch anything we missed while we were not connected.
+        syncEvents();
     } else if (type == "event"){
-        processEvent(message.value("id").toInteger(),
-                     message.value("body").toObject());
+        const qint64 id = message.value("id").toInteger();
+        processEvent(id, message.value("body").toObject());
+
+        // Move the catch-up bookmark forward, even for events processEvent
+        // skipped (such as our own), so they are never requested again.
+        rememberEventId(id);
     } else if (type == "error") {
         qWarning() << "Live connection error:" << message.value("message").toString();
     }
@@ -462,3 +479,96 @@ void ClientService::scheduleReconnect()
     reconnectDelayMs = qMin(reconnectDelayMs * 2, MaxReconnectDelayMs);
 }
 
+/**
+ * Returns the highest homeserver event ID this account has processed.
+ * Catch-up asks the server only for events newer than this.
+ */
+qint64 ClientService::lastEventId()
+{
+    if (!database) {
+        return 0;
+    }
+
+    const std::optional<QString> value = database->setting("last_event_id");
+    return value ? value->toLongLong() : 0;
+}
+
+/**
+ * Saves id as the catch-up bookmark, but only if it is newer than the one we
+ * already have, so an old event can never move the bookmark backwards.
+ */
+void ClientService::rememberEventId(qint64 id)
+{
+    if (!database || id <= lastEventId()) {
+        return;
+    }
+
+    if (!database->setSetting("last_event_id", QString::number(id))) {
+        qWarning() << "Failed to save last_event_id:" << database->lastError();
+    }
+}
+
+/**
+ * Asks the homeserver for events newer than our bookmark and feeds each one
+ * to processEvent, the same path live pushes take. If a full page comes back
+ * there may be more waiting, so it asks again.
+ *
+ * GET /user/events with {"username", "authToken", "afterId"}
+ */
+void ClientService::syncEvents()
+{
+    if (authToken.isEmpty() || currentUsername.isEmpty() || !database) {
+        return;
+    }
+
+    QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject data;
+    data["username"] = currentUsername;
+    data["authToken"] = authToken;
+    data["afterId"] = lastEventId();
+
+    QNetworkReply *reply = networkManager.sendCustomRequest(
+        request, QByteArrayLiteral("GET"),
+        QJsonDocument(data).toJson(QJsonDocument::Compact));
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const int statusCode =
+            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray response = reply->readAll();
+        reply->deleteLater();
+
+        if (statusCode != 200) {
+            qWarning() << "Event sync failed with status" << statusCode;
+            return;
+        }
+
+        const QJsonDocument document = QJsonDocument::fromJson(response);
+        if (!document.isArray()) {
+            qWarning() << "Event sync returned an invalid response";
+            return;
+        }
+
+        const qint64 bookmarkBefore = lastEventId();
+        int count = 0;
+
+        for (const QJsonValue &value : document.array()) {
+            const QJsonObject wrapper = value.toObject();
+            const qint64 id = wrapper.value("id").toInteger();
+            if (id <= 0) {
+                continue;
+            }
+
+            processEvent(id, wrapper.value("body").toObject());
+            rememberEventId(id);
+            ++count;
+        }
+
+        // A full page means there may be more. Only ask again if the bookmark
+        // actually moved, so a misbehaving server can't make us loop forever.
+        if (count >= EventPageSize && lastEventId() > bookmarkBefore) {
+            syncEvents();
+        }
+    });
+}

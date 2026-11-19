@@ -89,8 +89,14 @@ int main(int argc, char *argv[])
                     QHttpServerResponse::StatusCode::BadRequest);
             }
 
+            // Optional cursor: the client sends the highest event ID it already
+            // has, and we return only newer events. If it is missing, we start
+            // from the beginning, so older clients keep working.
+            const qint64 afterId =
+                qMax<qint64>(0, object.value("afterId").toInteger(0));
+
             const std::optional<QList<StoredEvent>> newEvents =
-                database.eventsForUser(*userId);
+                database.eventsForUser(*userId, afterId);
 
             if (!newEvents) {
                 return QHttpServerResponse(
