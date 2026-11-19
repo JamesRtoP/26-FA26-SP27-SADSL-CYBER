@@ -292,6 +292,53 @@ ApplicationWindow {
             return a.timestamp - b.timestamp
         })
     }
+
+    // Adds one message to the chat with chatName, creating the chat if this
+    // is the first time we have heard from that person. Keeps the sidebar
+    // and the open message list in sync.
+    function addMessageToChat(chatName, message) {
+        const key = chatName.toLowerCase()
+        const updated = root.conversations.slice()
+
+        // Find the existing conversation with this person, if there is one.
+        let chatIndex = -1
+        for (let i = 0; i < updated.length; ++i) {
+            if (updated[i].name.toLowerCase() === key) {
+                chatIndex = i
+                break
+            }
+        }
+
+        const newChat = chatIndex < 0
+        const chat = newChat
+                     ? { name: chatName, preview: "", messages: [] }
+                     : Object.assign({}, updated[chatIndex])
+        chat.messages = chat.messages.concat([message])
+        chat.preview = message.body
+
+        if (newChat) {
+            chatIndex = updated.length
+            updated.push(chat)
+        } else {
+            updated[chatIndex] = chat
+        }
+        root.conversations = updated
+
+        // Update this chat's row in the sidebar.
+        const entry = { name: chat.name, preview: chat.preview }
+        if (newChat)
+            conversationViewModel.append({ entry: entry })
+        else
+            conversationViewModel.setProperty(chatIndex, "entry", entry)
+
+        // If this chat is the one on screen, show the message right away.
+        if (root.selectedChat === chatIndex) {
+            messageViewModel.append({ entry: message })
+            messageList.forceLayout()
+            messageList.positionViewAtEnd()
+        }
+    }
+
     function populateConversations(events) {
         const loadedChats = []
         const chatIndices = Object.create(null)
@@ -513,6 +560,13 @@ ApplicationWindow {
             root.messageStatus =
                 message
                 || "Message wasn't sent. Try again."
+        }
+
+        // A message arrived live from another user (see handleLiveMessage
+        // in clientservice.cpp).
+        function onMessageReceived(sender, body, sentAt) {
+            root.addMessageToChat(sender,
+                                  root.makeMessage(body, sender, sentAt))
         }
     }
 
