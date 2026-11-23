@@ -67,7 +67,7 @@ namespace Q3Crypto
             }
 
             std::array<uint8_t, 64> signedStorage{};
-            size_t SignatureLength;//will end us as 64
+            size_t SignatureLength = signedStorage.size(); // buffer size in; OpenSSL writes 64 back
 
             std::array<std::uint8_t, PublicKeySizeML_KEM_1024 + 1> plaintext = encodePublicML_KEM_1024(inList[i].key);
 
@@ -115,7 +115,7 @@ namespace Q3Crypto
             }
 
             std::array<uint8_t, 64> signedStorage{};
-            size_t SignatureLength;//will end us as 64
+            size_t SignatureLength = signedStorage.size(); // buffer size in; OpenSSL writes 64 back
 
             std::array<std::uint8_t, PublicKeySizeX25519 + 1> plaintext = encodePublicX25519(inList[i].key);
 

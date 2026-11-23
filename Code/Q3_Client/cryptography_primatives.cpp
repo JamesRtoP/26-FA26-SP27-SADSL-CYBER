@@ -192,7 +192,7 @@ namespace Q3Crypto
         }
 
         std::array<uint8_t, 64> signedStorage{};
-        size_t SignatureLength;//will end us as 64
+        size_t SignatureLength = signedStorage.size(); // buffer size in; OpenSSL writes 64 back
 
         success = EVP_PKEY_sign(context, signedStorage.data(), &SignatureLength, plaintext.data(), plaintext.size()) == 1;
         if(!success)
