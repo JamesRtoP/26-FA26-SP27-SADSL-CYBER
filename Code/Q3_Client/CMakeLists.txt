@@ -86,6 +86,10 @@ if (Q3_CLIENT_BUILD_TESTS)
     target_link_libraries(testCryptoPrimatives PRIVATE Q3Crypto Qt6::Test)
     add_test(NAME testCryptoPrimatives COMMAND testCryptoPrimatives)
 
+    qt_add_executable(tst_keybundlejson tests/tst_keybundlejson.cpp)
+    target_link_libraries(tst_keybundlejson PRIVATE Q3Crypto Qt6::Test)
+    add_test(NAME tst_keybundlejson COMMAND tst_keybundlejson)
+
 
 endif()
 
