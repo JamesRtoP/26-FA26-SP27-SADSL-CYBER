@@ -20,8 +20,8 @@ namespace Q3Crypto
     public:
         ClientKeyStorage();
         //ClientKeyStorage(identityKeyPairBytes identity_key_bytes, );
-
-        //SharedKeyBytesStorage getKeyBytes();
+        SharedKeyBytesStorage getKeyBytes();
+        IdentityKeyPair& getIdentityKey();
     };
 }
 #endif // CLIENTKEYSTORAGE_H

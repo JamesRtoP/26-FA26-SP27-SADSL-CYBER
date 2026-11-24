@@ -19,13 +19,18 @@ namespace Q3Crypto
 
     SharedKeyBytesStorage ClientKeyStorage::getKeyBytes()
     {
-        identityKeyPairBytes IDKeyBytes = this->identity_key.getBytes();
+        identityKeyPublicBytes IDKeyBytes = this->identity_key.getPublicBytes();
         prekeyWithIdentifierSignedBytesX25519 new_curvePrekey = this->identity_key.signPublicPrekeyX25519(this->curvePrekey);
         prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKey = this->identity_key.signPublicPrekeyML_KEM_1024(this->lastResortpqkemKey);
         std::vector<prekeyWithIdentifierSignedBytesX25519> new_curveBulkPrekeys = this->identity_key.signBulkPublicPrekeysX25519(this->curveBulkPrekeys);
         std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> new_pqkemBulkPrekeys = this->identity_key.signBulkPublicPrekeysML_KEM_1024(this->pqkemBulkPrekeys);
         return SharedKeyBytesStorage (IDKeyBytes, new_curvePrekey, new_lastResortpqkemKey, new_curveBulkPrekeys, new_pqkemBulkPrekeys);
 
+    }
+
+    IdentityKeyPair& ClientKeyStorage::getIdentityKey()
+    {
+        return this->identity_key;
     }
 
 
