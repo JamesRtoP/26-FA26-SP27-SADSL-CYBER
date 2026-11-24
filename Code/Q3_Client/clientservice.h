@@ -6,6 +6,7 @@
 #include <QNetworkAccessManager>
 #include <QVariantList>
 #include <memory>
+#include <QJsonObject>
 
 #include "clientdatabase.h"
 #include "clientkeystorage.h"
@@ -41,6 +42,9 @@ public:
         const QString &recipient,
         int limit = 100);
 
+    Q_INVOKABLE void pushPublicKeys(const QJsonObject &keys);
+    Q_INVOKABLE void getPublicKeys(const QString &recipient);
+
 signals:
     void loginSucceeded(const QString &authToken);
     void loginFailed(const QString &message);
@@ -56,6 +60,14 @@ signals:
 
     void registrationSucceeded();
     void registrationFailed(const QString &message);
+
+    void publicKeysPushed();
+    void publicKeysPushFailed(const QString &message);
+
+    void publicKeysRetrieved(const QString &recipient,
+                             const QJsonObject &keys);
+    void publicKeysRetrievalFailed(const QString &recipient,
+                                   const QString &message);
 
 private:
     std::unique_ptr<Q3Crypto::ClientKeyStorage> keys;

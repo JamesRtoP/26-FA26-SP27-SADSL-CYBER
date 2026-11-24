@@ -385,11 +385,11 @@ ApplicationWindow {
         }
 
         function onLoginSucceeded(authToken) {
-            root.authBusy = false
+            // authBusy stays true: the sign-in screen shows "Please wait…"
+            // until history arrives, so the workspace never shows half-loaded.
             root.authStatus = ""
             root.accountName = root.pendingAccount
             root.historyBusy = true
-            root.loggedIn = true
             root.conversations = []
             conversationViewModel.clear()
             messageViewModel.clear()
@@ -407,17 +407,19 @@ ApplicationWindow {
         }
 
         function onEventsLoaded(events) {
+            // Same event-loop turn, so no frame is drawn between these lines.
+            root.loggedIn = true
             root.populateConversations(events)
             root.historyBusy = false
+            root.authBusy = false
         }
 
         function onEventsLoadFailed(message) {
-            root.historyBusy = false
             console.warn("Could not load events:", message)
-
-            root.messageStatus =
-                message
-                || "Could not load conversation history."
+            root.loggedIn = true
+            root.historyBusy = false
+            root.authBusy = false
+            root.messageStatus = message || "Could not load conversation history."
         }
 
         function onChatStarted() {
