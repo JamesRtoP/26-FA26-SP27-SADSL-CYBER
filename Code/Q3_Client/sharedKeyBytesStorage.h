@@ -8,15 +8,17 @@ namespace Q3Crypto
     class SharedKeyBytesStorage
     {
     private:
-        identityKeyPairBytes identity_key;
+        identityKeyPublicBytes identity_key;
         prekeyWithIdentifierSignedBytesX25519 curvePrekey;
         prekeyWithIdentifierSignedBytesML_KEM_1024 lastResortpqkemKey;
         std::vector<prekeyWithIdentifierSignedBytesX25519> curveBulkPrekeys;
         std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> pqkemBulkPrekeys;
     public:
-        SharedKeyBytesStorage(identityKeyPairBytes new_identity_keyBytes,
+        SharedKeyBytesStorage(identityKeyPublicBytes new_identity_keyBytes,
                          prekeyWithIdentifierSignedBytesX25519 new_curvePrekeyBytes,prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKeyBytes,
                          std::vector<prekeyWithIdentifierSignedBytesX25519> new_curveBulkPrekeysBytes, std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> new_pqkemBulkPrekeysBytes);
+
+        bool checkSignatures ();
     };
 }
 
