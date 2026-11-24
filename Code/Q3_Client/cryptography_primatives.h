@@ -3,7 +3,6 @@
 
 #include <openssl/evp.h>
 #include "SecretData.h"
-#include "identitykeypublic.h"
 //#include "EncodeAndDecode.h"
 
 #include <vector>
@@ -78,7 +77,7 @@ namespace Q3Crypto
         std::array<uint8_t, 64> signature;
     };
 
-    struct identityKeyPairBytes
+    struct identityKeyPublicBytes
     {
         std::array<std::uint8_t, 1 + PublicKeySizeX25519> X25519_key;
         std::array<std::uint8_t, 1 + PublicKeySizeEd25519> Ed25519_key;
@@ -136,9 +135,6 @@ namespace Q3Crypto
     EVP_PKEY_Ed25519_ptr decodePrivateEd25519(SecretData<PrivateKeySizeEd25519 + 1> encoded);
     EVP_PKEY_ML_KEM_1024_ptr decodePrivateML_KEM_1024(const SecretData<PrivateKeySizeML_KEM_1024 + 1>& encoded);
 
-    SecretData<160> concatinateKDFInputs(SecretData<32>& DH_1,SecretData<32>& DH_2,SecretData<32>& DH_3,SecretData<32>& DH_4,SecretData<32>& SS);
-
-    std::vector<uint8_t> generateAD(const IdentityKeyPublic& IK_A, const IdentityKeyPublic& IK_B, const EVP_PKEY_ML_KEM_1024_ptr& PQPK_B);
 
 }
 
