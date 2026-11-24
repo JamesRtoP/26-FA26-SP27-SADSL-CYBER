@@ -14,6 +14,9 @@ static constexpr int MaxReconnectDelayMs = 30000;
 /** How many events the homeserver returns per request (its default page size). */
 static constexpr int EventPageSize = 100;
 
+/** How often we ping the homeserver to check the connection is alive. */
+static constexpr int LiveKeepAliveMs = 30000;
+
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
 {
@@ -45,6 +48,22 @@ ClientService::ClientService(QObject *parent)
             this, &ClientService::scheduleReconnect);
     connect(&liveSocket, &QWebSocket::errorOccurred,
             this, &ClientService::scheduleReconnect);
+
+    // Heartbeat: every LiveKeepAliveMs, check the connection is still alive.
+    keepAliveTimer.setInterval(LiveKeepAliveMs);
+    connect(&keepAliveTimer, &QTimer::timeout,
+            this, &ClientService::checkLiveConnection);
+
+    // The server answered our ping, so the connection is alive.
+    connect(&liveSocket, &QWebSocket::pong, this, [this]() {
+        awaitingPong = false;
+    });
+
+    // The connection closed, so stop pinging until it is authenticated again.
+    connect(&liveSocket, &QWebSocket::disconnected, this, [this]() {
+        keepAliveTimer.stop();
+        awaitingPong = false;
+    });
 }
 
 /*
@@ -370,7 +389,7 @@ bool ClientService::openDatabase(const QString &username){
  *
  * The connection stays open so the server can push new events to us that
  * moment they happen. This only starts the connection and returns immediately.
- * The socket's connected() signal firess once it is ready.
+ * The socket's connected() signal fires once it is ready.
  */
 void ClientService::connectLive()
 {
@@ -384,7 +403,7 @@ void ClientService::connectLive()
         return;
     }
 
-    // The homeserer uses port 8080 for HTTP and port 8081 for live
+    // The homeserver uses port 8080 for HTTP and port 8081 for live
     // WebSockets connections. "ws://" is the WebSocket version of "http://"
     liveSocket.open(QUrl("ws://127.0.0.1:8081"));
 }
@@ -412,6 +431,10 @@ void ClientService::handleLiveMessage(const QString &text)
         // short wait instead of the long one.
         reconnectDelayMs = 1000;
         qDebug() << "Live connection authenticated";
+
+        // Start the heartbeat now that the connection is confirmed good.
+        awaitingPong = false;
+        keepAliveTimer.start();
 
         // Fetch anything we missed while we were not connected.
         syncEvents();
@@ -571,4 +594,23 @@ void ClientService::syncEvents()
             syncEvents();
         }
     });
+}
+
+/*
+ * Runs every LiveKeepAliveMs while the live connection is up.
+ *
+ * If our previous ping was never answered, the connection is dead even though
+ * Qt hasn't told us, so we drop it and the reconnect logic dials again.
+ * Otherwise we send a new ping and wait for the server's reply.
+ */
+void ClientService::checkLiveConnection()
+{
+    if (awaitingPong) {
+        qWarning() << "Live connection stopped answering; reconnecting";
+        liveSocket.abort();
+        return;
+    }
+
+    awaitingPong = true;
+    liveSocket.ping();
 }

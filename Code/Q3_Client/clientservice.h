@@ -78,6 +78,10 @@ private:
     int reconnectDelayMs = 1000; // current wait, doubles after each failed attempt
     bool wantLive = false; // true while a user is logged in
 
+    // Heartbeat: detects a connection that died without telling us.
+    QTimer keepAliveTimer;          // Ticks every LiveKeepAliveMs while connected.
+    bool awaitingPong = false;      // True after we sent a ping and before the reply arrives.
+
     // Opens the WebSocket connection to the homeerver's push port
     void connectLive();
 
@@ -91,14 +95,17 @@ private:
     // Schedules another live-connection attempt after a growing delay
     void scheduleReconnect();
 
-    /** Highest homeserver event ID this account has processed (0 if none). */
+    // Highest homeserver event ID this account has processed (0 if none).
     qint64 lastEventId();
 
-    /** Saves id as the catch-up bookmark if it is newer than the stored one. */
+    // Saves id as the catch-up bookmark if it is newer than the stored one.
     void rememberEventId(qint64 id);
 
-    /** Fetches events newer than our bookmark and processes them. */
+    // Fetches events newer than our bookmark and processes them.
     void syncEvents();
+
+    // Heartbeat tick: drops the connection if our last ping went unanswered.
+    void checkLiveConnection();
 };
 
 #endif // CLIENTSERVICE_H
