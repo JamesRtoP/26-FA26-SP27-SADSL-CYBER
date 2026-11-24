@@ -12,6 +12,7 @@
 #include <QJsonArray>
 
 #include "database.h"
+#include "keyroutes.h"
 #include "passwordhasher.h"
 #include "demoUser.h"
 
@@ -130,6 +131,8 @@ int main(int argc, char *argv[])
         }
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
+
+    addKeyRoutes(server, database);
 
     // temporary test route for registration
     server.route("/register", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)

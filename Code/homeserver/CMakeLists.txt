@@ -21,6 +21,8 @@ qt_add_executable(apphomeserver
     main.cpp
     database.h
     database.cpp
+    keyroutes.h
+    keyroutes.cpp
 )
 
 qt_add_qml_module(apphomeserver
