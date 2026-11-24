@@ -9,15 +9,15 @@ namespace Q3Crypto
         this->X25519Key = generateX25519Key();
     }
 
-    IdentityKeyPair::IdentityKeyPair(identityKeyPairBytes IDBytes)
+    IdentityKeyPair::IdentityKeyPair(identityKeyPublicBytes IDBytes)
     {
         this->Ed25519Key = decodePublicEd25519(IDBytes.X25519_key);
         this->X25519Key = decodePublicX25519(IDBytes.X25519_key);
     }
 
-    identityKeyPairBytes IdentityKeyPair::getBytes()
+    identityKeyPublicBytes IdentityKeyPair::getPublicBytes()
     {
-        identityKeyPairBytes returnMe;
+        identityKeyPublicBytes returnMe;
         returnMe.Ed25519_key = encodePublicEd25519(this->Ed25519Key);
         returnMe.X25519_key = encodePublicX25519(this->X25519Key);
         return returnMe;
@@ -137,4 +137,12 @@ namespace Q3Crypto
 
         return outList;
     }
+
+    const EVP_PKEY_X25519_ptr& IdentityKeyPair::getX25519Key()
+    {
+        return this->X25519Key;
+    }
+
+
+
 }

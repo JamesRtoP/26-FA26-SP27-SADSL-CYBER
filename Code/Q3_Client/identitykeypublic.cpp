@@ -4,10 +4,15 @@
 namespace Q3Crypto
 {
 
-    IdentityKeyPublic::IdentityKeyPublic(identityKeyPairBytes keyBytes)
+    IdentityKeyPublic::IdentityKeyPublic(identityKeyPublicBytes keyBytes)
     {
         this->Ed25519Key = decodePublicEd25519(keyBytes.Ed25519_key);
         this->X25519Key = decodePublicX25519(keyBytes.X25519_key);
+    }
+
+    IdentityKeyPublic::IdentityKeyPublic(const IdentityKeyPair& keyBytes)
+    {
+
     }
 
     bool IdentityKeyPublic::checkSignature(prekeyWithIdentifierSignedBytesML_KEM_1024 checkMe)
@@ -108,6 +113,19 @@ namespace Q3Crypto
 
         //if signatureVerificationResults == 1
         return true;
+    }
+
+    const EVP_PKEY_X25519_ptr& IdentityKeyPublic::getIK()
+    {
+        return this->X25519Key;
+    }
+
+    identityKeyPublicBytes const IdentityKeyPublic::getBytes()
+    {
+        identityKeyPublicBytes returnMe;
+        returnMe.Ed25519_key = encodePublicEd25519(this->Ed25519Key);
+        returnMe.X25519_key = encodePublicX25519(this->X25519Key);
+        return returnMe;
     }
 
 }
