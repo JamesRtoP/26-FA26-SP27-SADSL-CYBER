@@ -8,6 +8,8 @@
 #include <Qurl>
 #include <QDateTime>
 
+#include "otherclientpublickeys.h"
+
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
 {
@@ -112,6 +114,13 @@ void ClientService::loginUser(const QString &username, const QString &password)
 void ClientService::startChat(const QString &recipient){
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    /// GGG fetch key packet from server
+    Q3Crypto::otherClientPublicKeys targetsKeys;
+    Q3Crypto::EVP_PKEY_X25519_ptr EK_A = Q3Crypto::generateX25519Key();
+    Q3Crypto::SecretData<32> SK;
+    targetsKeys.generateInitialMessage(this->keys->getIdentityKey(),EK_A, "Initiate Chat", SK);
+
 
     QJsonObject data;
     data["authToken"] = authToken;
