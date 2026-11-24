@@ -24,7 +24,29 @@ struct StoredEvent {
     QJsonObject body;
 };
 
-// PostgreSQL persistence for users, sessions, and event inboxes; no HTTP logic.
+// A single-use public prekey from a user's PQXDH key bundle. The ID is chosen by the
+// owner's client so a later handshake message can name the prekey it consumed.
+struct OneTimePreKey {
+    qint64 keyId; // Client-chosen identifier, 0 to 2^32 - 1.
+    QByteArray publicKey; // Encoded public key bytes.
+    QByteArray signature; // Identity-key signature; empty for curve (X25519) prekeys.
+};
+
+// Number of unclaimed one-time prekeys a user still has on the server.
+struct PreKeyCounts {
+    int curve;
+    int postQuantum;
+};
+
+// One PQXDH handshake's worth of a recipient's public keys. Claiming a bundle removes
+// the returned one-time prekeys from the server so no other sender receives them.
+struct ClaimedKeyBundle {
+    QJsonObject bundle; // Identity and signed prekeys, as stored by storeKeyBundle().
+    std::optional<OneTimePreKey> curvePreKey; // Absent when the curve pool is empty.
+    std::optional<OneTimePreKey> pqPreKey; // Absent when the PQ pool is empty; use the signed PQ prekey.
+};
+
+// PostgreSQL persistence for users, sessions, event inboxes, and public key bundles; no HTTP logic.
 // Call open() before querying, and use/destroy the instance on that same thread.
 // Queries bind caller values as parameters instead of interpolating them into SQL.
 class Database
@@ -158,6 +180,31 @@ public:
      */
     std::optional<QList<StoredEvent>> eventsForUser(qint64 userId,
                                                   qint64 afterId = 0, int limit = 100);
+
+    /**
+     * @brief Publish a user's public key bundle and add one-time prekeys to their pools.
+     *
+     * @param userId ID of an existing user who owns the keys.
+     * @param bundle Identity and signed prekeys; must contain a string "identityKey". Stored as given.
+     * @param curvePreKeys One-time X25519 prekeys to add; signatures are ignored.
+     * @param pqPreKeys One-time post-quantum prekeys to add; each needs a signature.
+     * @return The unclaimed prekey counts after the upload, or std::nullopt on validation or SQL failure.
+     * @note Replaces any earlier bundle. A changed "identityKey" deletes the user's old one-time prekeys,
+     *       which were signed by the old identity. A prekey ID already in the pool is skipped. The caller
+     *       validates key encodings; the server never verifies signatures (recipients do). Atomic.
+     */
+    std::optional<PreKeyCounts> storeKeyBundle(qint64 userId, const QJsonObject &bundle,
+                                               const QList<OneTimePreKey> &curvePreKeys,
+                                               const QList<OneTimePreKey> &pqPreKeys);
+    /**
+     * @brief Fetch a user's key bundle and claim one prekey from each one-time pool.
+     *
+     * @param userId ID of the user whose keys a sender needs.
+     * @return The bundle with any claimed prekeys, or std::nullopt if the user has no bundle or the query fails.
+     * @note Claimed prekeys are deleted in the same transaction, so each is handed out at most once, even to
+     *       concurrent callers. A missing bundle leaves lastError() empty. The caller must authenticate the sender.
+     */
+    std::optional<ClaimedKeyBundle> claimKeyBundle(qint64 userId);
 private:
     /**
      * @brief Apply supported schema upgrades in a single transaction.

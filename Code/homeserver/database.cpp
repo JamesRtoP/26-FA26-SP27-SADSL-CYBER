@@ -110,7 +110,7 @@ bool Database::migrate()
         return fail(query.lastError().text());
     // Refuse schemas written by a newer application rather than guessing compatibility.
     const int version = query.value(0).toInt();
-    if (version > 1)
+    if (version > 2)
         return fail("Database schema is newer than this application supports");
     if (version == 0) {
         // Adopt the original events table without rewriting IDs, bodies, or ownership.
@@ -142,6 +142,31 @@ bool Database::migrate()
             // Index the reverse direction for event deletion/foreign-key maintenance.
             "CREATE INDEX user_events_event_id_idx ON user_events(event_id)",
             "INSERT INTO homeserver_schema_migrations(version) VALUES (1)"
+        };
+        for (const QString &statement : statements)
+            if (!query.exec(statement))
+                return fail(query.lastError().text());
+    }
+    if (version < 2) {
+        // v2: PQXDH public key bundles. Only public keys reach the server.
+        const QStringList statements = {
+            // One published bundle per user (identity key and signed prekeys), replaced on upload.
+            // The JSON shape belongs to the client protocol, so the server stores it opaquely.
+            "CREATE TABLE user_key_bundles (user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, "
+                "bundle JSONB NOT NULL CHECK (jsonb_typeof(bundle->'identityKey') = 'string'), "
+                "updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+            // One-time prekeys are rows so a fetch can claim and delete exactly one.
+            // PQ prekeys are signed by the identity key; curve prekeys are not.
+            // The unique key also serves the per-user, per-kind lowest-ID claim.
+            "CREATE TABLE user_one_time_prekeys (id BIGSERIAL PRIMARY KEY, "
+                "user_id BIGINT NOT NULL REFERENCES user_key_bundles(user_id) ON DELETE CASCADE, "
+                "post_quantum BOOLEAN NOT NULL, "
+                "key_id BIGINT NOT NULL CHECK (key_id BETWEEN 0 AND 4294967295), "
+                "public_key BYTEA NOT NULL CHECK (octet_length(public_key) > 0), "
+                "signature BYTEA CHECK (octet_length(signature) > 0), "
+                "CHECK (post_quantum = (signature IS NOT NULL)), "
+                "UNIQUE (user_id, post_quantum, key_id))",
+            "INSERT INTO homeserver_schema_migrations(version) VALUES (2)"
         };
         for (const QString &statement : statements)
             if (!query.exec(statement))
@@ -405,4 +430,115 @@ std::optional<QList<StoredEvent>> Database::eventsForUser(qint64 userId, qint64 
     while (query.next()) events.append({query.value(0).toLongLong(),
         QJsonDocument::fromJson(query.value(1).toString().toUtf8()).object()});
     return events;
+}
+
+/**
+ * @brief Publish a user's public key bundle and add one-time prekeys to their pools.
+ *
+ * @param userId ID of an existing user who owns the keys.
+ * @param bundle Identity and signed prekeys; must contain a string "identityKey". Stored as given.
+ * @param curvePreKeys One-time X25519 prekeys to add; signatures are ignored.
+ * @param pqPreKeys One-time post-quantum prekeys to add; each needs a signature.
+ * @return The unclaimed prekey counts after the upload, or std::nullopt on validation or SQL failure.
+ * @note Replaces any earlier bundle. A changed "identityKey" deletes the user's old one-time prekeys,
+ *       which were signed by the old identity. A prekey ID already in the pool is skipped. Atomic.
+ */
+std::optional<PreKeyCounts> Database::storeKeyBundle(qint64 userId, const QJsonObject &bundle,
+    const QList<OneTimePreKey> &curvePreKeys, const QList<OneTimePreKey> &pqPreKeys)
+{
+    m_lastError.clear();
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.transaction()) { m_lastError = db.lastError().text(); return std::nullopt; }
+    QSqlQuery query(db);
+    auto fail = [&]() -> std::optional<PreKeyCounts> {
+        m_lastError = query.lastError().text();
+        db.rollback();
+        return std::nullopt;
+    };
+
+    // Prekeys signed by a previous identity key can no longer be verified, so drop them
+    // before replacing the bundle. A first upload has no rows to delete.
+    query.prepare("DELETE FROM user_one_time_prekeys p USING user_key_bundles b "
+                  "WHERE p.user_id = b.user_id AND b.user_id = ? "
+                  "AND b.bundle->>'identityKey' IS DISTINCT FROM ?");
+    query.addBindValue(userId);
+    query.addBindValue(bundle.value("identityKey").toString());
+    if (!query.exec()) return fail();
+
+    query.prepare("INSERT INTO user_key_bundles(user_id, bundle) VALUES (?, CAST(? AS JSONB)) "
+                  "ON CONFLICT (user_id) DO UPDATE SET bundle = EXCLUDED.bundle, updated_at = now()");
+    query.addBindValue(userId);
+    query.addBindValue(QString::fromUtf8(QJsonDocument(bundle).toJson(QJsonDocument::Compact)));
+    if (!query.exec()) return fail();
+
+    // Re-uploading a key the server already holds is harmless, so skip duplicates.
+    query.prepare("INSERT INTO user_one_time_prekeys(user_id, post_quantum, key_id, public_key, signature) "
+                  "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING");
+    for (bool postQuantum : {false, true}) {
+        for (const OneTimePreKey &key : postQuantum ? pqPreKeys : curvePreKeys) {
+            query.addBindValue(userId);
+            query.addBindValue(postQuantum);
+            query.addBindValue(key.keyId);
+            query.addBindValue(key.publicKey);
+            // A null signature marks a curve prekey; the table CHECK rejects mismatches.
+            query.addBindValue(postQuantum ? QVariant(key.signature) : QVariant(QMetaType(QMetaType::QByteArray)));
+            if (!query.exec()) return fail();
+        }
+    }
+
+    query.prepare("SELECT count(*) FILTER (WHERE NOT post_quantum), count(*) FILTER (WHERE post_quantum) "
+                  "FROM user_one_time_prekeys WHERE user_id = ?");
+    query.addBindValue(userId);
+    if (!query.exec() || !query.next()) return fail();
+    const PreKeyCounts counts{query.value(0).toInt(), query.value(1).toInt()};
+    query.finish();
+    if (!db.commit()) { m_lastError = db.lastError().text(); db.rollback(); return std::nullopt; }
+    return counts;
+}
+
+/**
+ * @brief Fetch a user's key bundle and claim one prekey from each one-time pool.
+ *
+ * @param userId ID of the user whose keys a sender needs.
+ * @return The bundle with any claimed prekeys, or std::nullopt if the user has no bundle or the query fails.
+ * @note Claimed prekeys are deleted in the same transaction, so each is handed out at most once, even to
+ *       concurrent callers. A missing bundle leaves lastError() empty.
+ */
+std::optional<ClaimedKeyBundle> Database::claimKeyBundle(qint64 userId)
+{
+    m_lastError.clear();
+    QSqlDatabase db = QSqlDatabase::database(m_connectionName);
+    if (!db.transaction()) { m_lastError = db.lastError().text(); return std::nullopt; }
+    QSqlQuery query(db);
+    auto fail = [&]() -> std::optional<ClaimedKeyBundle> {
+        m_lastError = query.lastError().text();
+        db.rollback();
+        return std::nullopt;
+    };
+
+    query.prepare("SELECT bundle::text FROM user_key_bundles WHERE user_id = ?");
+    query.addBindValue(userId);
+    if (!query.exec()) return fail();
+    if (!query.next()) { query.finish(); db.rollback(); return std::nullopt; }
+    ClaimedKeyBundle claimed{QJsonDocument::fromJson(query.value(0).toString().toUtf8()).object(), {}, {}};
+
+    // SKIP LOCKED lets concurrent senders claim different prekeys instead of
+    // waiting on, or both receiving, the same row.
+    query.prepare("DELETE FROM user_one_time_prekeys WHERE id = ("
+                  "SELECT id FROM user_one_time_prekeys WHERE user_id = ? AND post_quantum = ? "
+                  "ORDER BY key_id LIMIT 1 FOR UPDATE SKIP LOCKED) "
+                  "RETURNING key_id, public_key, signature");
+    for (bool postQuantum : {false, true}) {
+        query.addBindValue(userId);
+        query.addBindValue(postQuantum);
+        if (!query.exec()) return fail();
+        if (query.next()) {
+            OneTimePreKey key{query.value(0).toLongLong(), query.value(1).toByteArray(),
+                              query.value(2).toByteArray()};
+            (postQuantum ? claimed.pqPreKey : claimed.curvePreKey) = key;
+        }
+    }
+    query.finish();
+    if (!db.commit()) { m_lastError = db.lastError().text(); db.rollback(); return std::nullopt; }
+    return claimed;
 }

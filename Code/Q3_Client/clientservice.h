@@ -9,6 +9,8 @@
 #include <QJsonObject>
 
 #include "clientdatabase.h"
+#include "clientkeystorage.h"
+#include "SecretData.h"
 
 class ClientService : public QObject
 {
@@ -68,6 +70,9 @@ signals:
                                    const QString &message);
 
 private:
+    std::unique_ptr<Q3Crypto::ClientKeyStorage> keys;
+    std::unordered_map<std::string, Q3Crypto::SecretData<64>> handshakeKeys;
+
     bool openDatabase(const QString &username);
 
     QNetworkAccessManager networkManager;

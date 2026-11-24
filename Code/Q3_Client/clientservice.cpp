@@ -9,10 +9,13 @@
 #include <QDateTime>
 
 static constexpr int RequestTimeoutMs = 15000;
+#include "otherclientpublickeys.h"
 
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
-{}
+{
+    this->keys = nullptr;
+}
 
 /*
  * Sends a registration request to the homeserver
@@ -26,9 +29,16 @@ void ClientService::registerUser(const QString &username,
 
     // tells HTTP request that body will contain JSON
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    this->keys = std::make_unique<Q3Crypto::ClientKeyStorage>();
+
+    Q3Crypto::SharedKeyBytesStorage shareMe = this->keys->getKeyBytes();
+
     QJsonObject data;
     data["username"] = username;
     data["password"] = password;
+    //GGG add json conversion for shareMe;
+
 
     // wrap JSON object in JSON document of bytes
     QByteArray jsonData = QJsonDocument(data).toJson(QJsonDocument::Compact);
@@ -46,6 +56,7 @@ void ClientService::registerUser(const QString &username,
             emit registrationSucceeded();
         } else{
             emit registrationFailed(response);
+            this->keys = nullptr;
         }
         reply->deleteLater();
     });
@@ -107,6 +118,13 @@ void ClientService::startChat(const QString &recipient){
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
     request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    /// GGG fetch key packet from server
+    Q3Crypto::otherClientPublicKeys targetsKeys;
+    Q3Crypto::EVP_PKEY_X25519_ptr EK_A = Q3Crypto::generateX25519Key();
+    Q3Crypto::SecretData<32> SK;
+    targetsKeys.generateInitialMessage(this->keys->getIdentityKey(),EK_A, "Initiate Chat", SK);
+
 
     QJsonObject data;
     data["authToken"] = authToken;
