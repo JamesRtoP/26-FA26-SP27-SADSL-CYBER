@@ -37,9 +37,9 @@ namespace Q3Crypto
     QJsonObject initialMessageToJson(const PQXDHInitialMessage& message)
     {
         QJsonObject json;
-        json["identityKey"] = bytesToBase64(message.IK_B.X25519_key.data(), message.IK_B.X25519_key.size());
-        json["identitySigningKey"] = bytesToBase64(message.IK_B.Ed25519_key.data(), message.IK_B.Ed25519_key.size());
-        json["ephemeralKey"] = bytesToBase64(message.EK_B.data(), message.EK_B.size());
+        json["identityKey"] = bytesToBase64(message.IK_A.X25519_key.data(), message.IK_A.X25519_key.size());
+        json["identitySigningKey"] = bytesToBase64(message.IK_A.Ed25519_key.data(), message.IK_A.Ed25519_key.size());
+        json["ephemeralKey"] = bytesToBase64(message.EK_A.data(), message.EK_A.size());
         json["pqCiphertext"] = bytesToBase64(message.PQKEMCiphertext.data(), message.PQKEMCiphertext.size());
 
         json["signedPreKeyId"] = message.keyIdentifiers.SPK_B_Identifier;
@@ -59,10 +59,10 @@ namespace Q3Crypto
 
         // ---- fixed-size fields ----
         base64FieldToBytes(json, "identityKey",
-                           message.IK_B.X25519_key.data(), message.IK_B.X25519_key.size());
+                           message.IK_A.X25519_key.data(), message.IK_A.X25519_key.size());
         base64FieldToBytes(json, "identitySigningKey",
-                           message.IK_B.Ed25519_key.data(), message.IK_B.Ed25519_key.size());
-        base64FieldToBytes(json, "ephemeralKey", message.EK_B.data(), message.EK_B.size());
+                           message.IK_A.Ed25519_key.data(), message.IK_A.Ed25519_key.size());
+        base64FieldToBytes(json, "ephemeralKey", message.EK_A.data(), message.EK_A.size());
         base64FieldToBytes(json, "pqCiphertext", message.PQKEMCiphertext.data(), message.PQKEMCiphertext.size());
         base64FieldToBytes(json, "nonce",
                            message.initialCiphertext.nonce.data(), message.initialCiphertext.nonce.size());

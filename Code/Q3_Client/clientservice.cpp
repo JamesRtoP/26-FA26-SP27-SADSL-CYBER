@@ -338,6 +338,12 @@ void ClientService::loadEvents()
 
                 if (wrapper.contains("id"))
                     event["id"] = wrapper.value("id");
+
+                if(event.value("eventType").toString() == "start_chat")
+                {
+
+                }
+
             } else {
                 event = wrapper;
             }

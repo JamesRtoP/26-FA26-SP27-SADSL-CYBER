@@ -19,8 +19,8 @@ namespace Q3Crypto
 
     struct PQXDHInitialMessage
     {
-        identityKeyPublicBytes IK_B;
-        std::array<uint8_t, PublicKeySizeX25519 + 1> EK_B;
+        identityKeyPublicBytes IK_A;
+        std::array<uint8_t, PublicKeySizeX25519 + 1> EK_A;
         std::array<uint8_t, 1568> PQKEMCiphertext;
         identitfierInfo keyIdentifiers;
         AES_256Result initialCiphertext;
@@ -28,6 +28,5 @@ namespace Q3Crypto
 
     QJsonObject initialMessageToJson(const PQXDHInitialMessage& message);
     PQXDHInitialMessage initialMessageFromJson(const QJsonObject& json);
-
 }
 #endif // PQXDH_FUNCTIONS_H

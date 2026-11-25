@@ -4,6 +4,7 @@
 #include "cryptography_primatives.h"
 #include "identitykeypair.h"
 #include "sharedKeyBytesStorage.h"
+#include "pqxdh_functions.h"
 namespace Q3Crypto
 {
     class ClientKeyStorage
@@ -24,6 +25,8 @@ namespace Q3Crypto
         //ClientKeyStorage(identityKeyPairBytes identity_key_bytes, );
         SharedKeyBytesStorage getKeyBytes();
         IdentityKeyPair& getIdentityKey();
+        SecretData<32> getSKFromInitialMessage(PQXDHInitialMessage message);
+
     };
 }
 #endif // CLIENTKEYSTORAGE_H
