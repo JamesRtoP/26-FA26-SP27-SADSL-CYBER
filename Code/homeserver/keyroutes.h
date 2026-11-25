@@ -3,6 +3,8 @@
 
 class QHttpServer;
 class Database;
+class QJsonObject;
+class qint64;
 
 /**
  * @brief Register POST /user/keys (publish own keys) and GET /user/keys (fetch a recipient's bundle).
@@ -11,5 +13,7 @@ class Database;
  * @note Request and response formats are documented in DATABASE.md § Public key API.
  */
 void addKeyRoutes(QHttpServer &server, Database &database);
+
+bool addKeyBundleToDatabase(QJsonObject keys, Database &database, qint64 userId);
 
 #endif
