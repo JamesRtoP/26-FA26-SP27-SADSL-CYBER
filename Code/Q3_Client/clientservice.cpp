@@ -341,7 +341,8 @@ void ClientService::loadEvents()
 
                 if(event.value("eventType").toString() == "start_chat")
                 {
-
+                    Q3Crypto::SecretData<32> SK = this->keys->getSKFromInitialMessage(Q3Crypto::initialMessageFromJson(event.value("data").toObject()));
+                    this->handshakeKeys[event.value("sender").toString()]= std::move(SK);
                 }
 
             } else {
