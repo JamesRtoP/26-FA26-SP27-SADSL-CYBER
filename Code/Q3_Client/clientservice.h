@@ -80,6 +80,7 @@ private:
 
     // Heartbeat: detects a connection that died without telling us.
     QTimer keepAliveTimer;          // Ticks every LiveKeepAliveMs while connected.
+    QTimer connectTimeoutTimer;
     bool awaitingPong = false;      // True after we sent a ping and before the reply arrives.
 
     // Opens the WebSocket connection to the homeerver's push port

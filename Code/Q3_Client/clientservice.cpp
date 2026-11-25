@@ -11,11 +11,14 @@
 // Longest we ever wait between reconnect attempts
 static constexpr int MaxReconnectDelayMs = 30000;
 
-/** How many events the homeserver returns per request (its default page size). */
+// How many events the homeserver returns per request (its default page size).
 static constexpr int EventPageSize = 100;
 
-/** How often we ping the homeserver to check the connection is alive. */
+// How often we ping the homeserver to check the connection is alive.
 static constexpr int LiveKeepAliveMs = 30000;
+
+// How long a connection attempt may take before we give up and retry.
+static constexpr int LiveConnectTimeoutMs = 10000;
 
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
@@ -23,6 +26,9 @@ ClientService::ClientService(QObject *parent)
     // When the live connection opens, tell the server who we are.
     // The server drops connections that don't authenticate quickly.
     connect(&liveSocket, &QWebSocket::connected, this, [this](){
+        // The attempt finished opening, so cancel its timeout.
+        connectTimeoutTimer.stop();
+
         QJsonObject auth;
         auth["type"] = "auth";
         auth["authToken"] = authToken;
@@ -57,6 +63,17 @@ ClientService::ClientService(QObject *parent)
     // The server answered our ping, so the connection is alive.
     connect(&liveSocket, &QWebSocket::pong, this, [this]() {
         awaitingPong = false;
+    });
+
+
+    // Give up on an attempt that hasn't finished opening in time, so a server
+    // that accepts the connection but never answers can't leave us stuck.
+    connectTimeoutTimer.setSingleShot(true);
+    connectTimeoutTimer.setInterval(LiveConnectTimeoutMs);
+    connect(&connectTimeoutTimer, &QTimer::timeout, this, [this]() {
+        qWarning() << "Live connection attempt timed out";
+        liveSocket.abort();
+        scheduleReconnect();
     });
 
     // The connection closed, so stop pinging until it is authenticated again.
@@ -406,6 +423,9 @@ void ClientService::connectLive()
     // The homeserver uses port 8080 for HTTP and port 8081 for live
     // WebSockets connections. "ws://" is the WebSocket version of "http://"
     liveSocket.open(QUrl("ws://127.0.0.1:8081"));
+
+    // Start the clock on this attempt. The connected lambda stops it.
+    connectTimeoutTimer.start();
 }
 
 /*
@@ -608,6 +628,10 @@ void ClientService::checkLiveConnection()
     if (awaitingPong) {
         qWarning() << "Live connection stopped answering; reconnecting";
         liveSocket.abort();
+
+        // abort() may not emit disconnected, so schedule the retry here.
+        // scheduleReconnect ignores the call if one is already scheduled.
+        scheduleReconnect();
         return;
     }
 
