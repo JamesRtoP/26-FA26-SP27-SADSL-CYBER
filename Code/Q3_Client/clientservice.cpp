@@ -8,9 +8,80 @@
 #include <Qurl>
 #include <QDateTime>
 
+// Longest we ever wait between reconnect attempts
+static constexpr int MaxReconnectDelayMs = 30000;
+
+// How many events the homeserver returns per request (its default page size).
+static constexpr int EventPageSize = 100;
+
+// How often we ping the homeserver to check the connection is alive.
+static constexpr int LiveKeepAliveMs = 30000;
+
+// How long a connection attempt may take before we give up and retry.
+static constexpr int LiveConnectTimeoutMs = 10000;
+
 ClientService::ClientService(QObject *parent)
     : QObject{parent}
-{}
+{
+    // When the live connection opens, tell the server who we are.
+    // The server drops connections that don't authenticate quickly.
+    connect(&liveSocket, &QWebSocket::connected, this, [this](){
+        // The attempt finished opening, so cancel its timeout.
+        connectTimeoutTimer.stop();
+
+        QJsonObject auth;
+        auth["type"] = "auth";
+        auth["authToken"] = authToken;
+
+        liveSocket.sendTextMessage(QString::fromUtf8(
+            QJsonDocument(auth).toJson(QJsonDocument::Compact)));
+    });
+
+    // Every message the server pushes down the live connection goes to
+    // handleLiveMessage
+    connect(&liveSocket, &QWebSocket::textMessageReceived,
+                this, &ClientService::handleLiveMessage);
+
+    // The retry timer fires once per attempt. When it fires, try to connect.
+    reconnectTimer.setSingleShot(true);
+    connect(&reconnectTimer, &QTimer::timeout,
+            this, &ClientService::connectLive);
+
+    // If the live connection closes, or an attempt to open it fails, schedule
+    // a retry. A failed attempt (for example, the server is down) may report
+    // an error without a clean "disconnected", so we listen for both.
+    connect(&liveSocket, &QWebSocket::disconnected,
+            this, &ClientService::scheduleReconnect);
+    connect(&liveSocket, &QWebSocket::errorOccurred,
+            this, &ClientService::scheduleReconnect);
+
+    // Heartbeat: every LiveKeepAliveMs, check the connection is still alive.
+    keepAliveTimer.setInterval(LiveKeepAliveMs);
+    connect(&keepAliveTimer, &QTimer::timeout,
+            this, &ClientService::checkLiveConnection);
+
+    // The server answered our ping, so the connection is alive.
+    connect(&liveSocket, &QWebSocket::pong, this, [this]() {
+        awaitingPong = false;
+    });
+
+
+    // Give up on an attempt that hasn't finished opening in time, so a server
+    // that accepts the connection but never answers can't leave us stuck.
+    connectTimeoutTimer.setSingleShot(true);
+    connectTimeoutTimer.setInterval(LiveConnectTimeoutMs);
+    connect(&connectTimeoutTimer, &QTimer::timeout, this, [this]() {
+        qWarning() << "Live connection attempt timed out";
+        liveSocket.abort();
+        scheduleReconnect();
+    });
+
+    // The connection closed, so stop pinging until it is authenticated again.
+    connect(&liveSocket, &QWebSocket::disconnected, this, [this]() {
+        keepAliveTimer.stop();
+        awaitingPong = false;
+    });
+}
 
 /*
  * Sends a registration request to the homeserver
@@ -216,6 +287,10 @@ void ClientService::loadEvents()
         jsonData);
 
     connect(reply, &QNetworkReply::finished, this,[this, reply]() {
+        // Start the live connection only now. The history below sets the
+        // catch-up bookmark synchronously, so by the time the connection
+        // authenticates and syncs, it already knows what the UI has loaded.
+        connectLive();
         const int statusCode = reply->attribute(
                                         QNetworkRequest::HttpStatusCodeAttribute
                                         ).toInt();
@@ -265,9 +340,13 @@ void ClientService::loadEvents()
             // Homeserver returns { "id": ..., "body": {...} }.
             if (wrapper.value("body").isObject()) {
                 event = wrapper.value("body").toObject();
-
-                if (wrapper.contains("id"))
+                if (wrapper.contains("id")) {
                     event["id"] = wrapper.value("id");
+
+                    // History loaded at login counts as "seen", so catch-up
+                    // only fetches what is newer than this.
+                    rememberEventId(wrapper.value("id").toInteger());
+                }
             } else {
                 event = wrapper;
             }
@@ -320,4 +399,242 @@ bool ClientService::openDatabase(const QString &username){
     }
     database = std::move(userDatabase);
     return true;
+}
+
+/*
+ * Opens the live WebSocket connection to the homeserver
+ *
+ * The connection stays open so the server can push new events to us that
+ * moment they happen. This only starts the connection and returns immediately.
+ * The socket's connected() signal fires once it is ready.
+ */
+void ClientService::connectLive()
+{
+    // Connection should be kept alive. If it drops, the
+    // reconnect logic will retry.
+    wantLive = true;
+
+    // Don't dial again if already connected or an attempt is in
+    // progress.
+    if (liveSocket.state() != QAbstractSocket::UnconnectedState) {
+        return;
+    }
+
+    // The homeserver uses port 8080 for HTTP and port 8081 for live
+    // WebSockets connections. "ws://" is the WebSocket version of "http://"
+    liveSocket.open(QUrl("ws://127.0.0.1:8081"));
+
+    // Start the clock on this attempt. The connected lambda stops it.
+    connectTimeoutTimer.start();
+}
+
+/*
+ * Handles one message pushed by the homeserver on the live socket.
+ *
+ * Every message is a JSON object with a "type" field:
+ *      "authenticated" -> the server accepted our token
+ *      "event" -> a new event (chat message/request) for us
+ *      "error" -> server rejected something and will close socket
+ */
+void ClientService::handleLiveMessage(const QString &text)
+{
+    const QJsonDocument doc = QJsonDocument::fromJson(text.toUtf8());
+    if (!doc.isObject()){
+        return; // not JSON we understand, so ignore it
+    }
+
+    const QJsonObject message = doc.object();
+    const QString type = message.value("type").toString();
+
+    if (type == "authenticated"){
+        // The connection is healthy again, so the next failure starts from a
+        // short wait instead of the long one.
+        reconnectDelayMs = 1000;
+        qDebug() << "Live connection authenticated";
+
+        // Start the heartbeat now that the connection is confirmed good.
+        awaitingPong = false;
+        keepAliveTimer.start();
+
+        // Fetch anything we missed while we were not connected.
+        syncEvents();
+    } else if (type == "event"){
+        const qint64 id = message.value("id").toInteger();
+        processEvent(id, message.value("body").toObject());
+
+        // Move the catch-up bookmark forward, even for events processEvent
+        // skipped (such as our own), so they are never requested again.
+        rememberEventId(id);
+    } else if (type == "error") {
+        qWarning() << "Live connection error:" << message.value("message").toString();
+    }
+}
+
+/*
+ * Applies one event from the homeserver. Stores it locally and tells the UI.
+ */
+void ClientService::processEvent(qint64 id, const QJsonObject &body)
+{
+    if(!database) {
+        return; // Not logged in, so there is no local database to store into
+    }
+
+    const QString sender = body.value("sender").toString();
+    const QString eventType = body.value("eventType").toString();
+
+    // ensures we don't store our messages twice if server sends ours back to us
+    if(sender.compare(currentUsername, Qt::CaseInsensitive) == 0){
+        return;
+    }
+
+    if(eventType == "message"){
+        QDateTime sentAt = QDateTime::fromString(body.value("timestamp").toString(), Qt::ISODate);
+        if(!sentAt.isValid()){
+            sentAt = QDateTime::currentDateTimeUtc();
+        }
+        const QString text = body.value("data").toString(); //TO-DO: Decrypt message
+
+        // Make sure sender is in our contacts, then store message
+        const std::optional<qint64> contactId = database->addContact(sender);
+        if(!contactId || !database->addMessage(*contactId, MessageDirection::Incoming,
+                                                  text, sentAt, MessageStatus::Sent, id)){
+            qWarning() << "Failed to store incoming message:" << database ->lastError();
+            return;
+        }
+        emit messageReceived(sender, text, sentAt);
+    }
+}
+
+/*
+ * Schedules another connection attempt after a delay that doubles each time
+ * (1s, 2s, 4s ... up to MaxReconnectDelayMs).
+ *
+ * Does nothing if we are not supposed to be connected, or if an attempt is
+ * already scheduled.
+ */
+void ClientService::scheduleReconnect()
+{
+    if (!wantLive || reconnectTimer.isActive()) {
+        return;
+    }
+    qDebug() << "Live connection lost; retrying in" << reconnectDelayMs << "ms";
+    reconnectTimer.start(reconnectDelayMs);
+    reconnectDelayMs = qMin(reconnectDelayMs * 2, MaxReconnectDelayMs);
+}
+
+/**
+ * Returns the highest homeserver event ID this account has processed.
+ * Catch-up asks the server only for events newer than this.
+ */
+qint64 ClientService::lastEventId()
+{
+    if (!database) {
+        return 0;
+    }
+
+    const std::optional<QString> value = database->setting("last_event_id");
+    return value ? value->toLongLong() : 0;
+}
+
+/**
+ * Saves id as the catch-up bookmark, but only if it is newer than the one we
+ * already have, so an old event can never move the bookmark backwards.
+ */
+void ClientService::rememberEventId(qint64 id)
+{
+    if (!database || id <= lastEventId()) {
+        return;
+    }
+
+    if (!database->setSetting("last_event_id", QString::number(id))) {
+        qWarning() << "Failed to save last_event_id:" << database->lastError();
+    }
+}
+
+/**
+ * Asks the homeserver for events newer than our bookmark and feeds each one
+ * to processEvent, the same path live pushes take. If a full page comes back
+ * there may be more waiting, so it asks again.
+ *
+ * GET /user/events with {"username", "authToken", "afterId"}
+ */
+void ClientService::syncEvents()
+{
+    if (authToken.isEmpty() || currentUsername.isEmpty() || !database) {
+        return;
+    }
+
+    QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject data;
+    data["username"] = currentUsername;
+    data["authToken"] = authToken;
+    data["afterId"] = lastEventId();
+
+    QNetworkReply *reply = networkManager.sendCustomRequest(
+        request, QByteArrayLiteral("GET"),
+        QJsonDocument(data).toJson(QJsonDocument::Compact));
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        const int statusCode =
+            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        const QByteArray response = reply->readAll();
+        reply->deleteLater();
+
+        if (statusCode != 200) {
+            qWarning() << "Event sync failed with status" << statusCode;
+            return;
+        }
+
+        const QJsonDocument document = QJsonDocument::fromJson(response);
+        if (!document.isArray()) {
+            qWarning() << "Event sync returned an invalid response";
+            return;
+        }
+
+        const qint64 bookmarkBefore = lastEventId();
+        int count = 0;
+
+        for (const QJsonValue &value : document.array()) {
+            const QJsonObject wrapper = value.toObject();
+            const qint64 id = wrapper.value("id").toInteger();
+            if (id <= 0) {
+                continue;
+            }
+
+            processEvent(id, wrapper.value("body").toObject());
+            rememberEventId(id);
+            ++count;
+        }
+
+        // A full page means there may be more. Only ask again if the bookmark
+        // actually moved, so a misbehaving server can't make us loop forever.
+        if (count >= EventPageSize && lastEventId() > bookmarkBefore) {
+            syncEvents();
+        }
+    });
+}
+
+/*
+ * Runs every LiveKeepAliveMs while the live connection is up.
+ *
+ * If our previous ping was never answered, the connection is dead even though
+ * Qt hasn't told us, so we drop it and the reconnect logic dials again.
+ * Otherwise we send a new ping and wait for the server's reply.
+ */
+void ClientService::checkLiveConnection()
+{
+    if (awaitingPong) {
+        qWarning() << "Live connection stopped answering; reconnecting";
+        liveSocket.abort();
+
+        // abort() may not emit disconnected, so schedule the retry here.
+        // scheduleReconnect ignores the call if one is already scheduled.
+        scheduleReconnect();
+        return;
+    }
+
+    awaitingPong = true;
+    liveSocket.ping();
 }

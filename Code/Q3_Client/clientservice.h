@@ -1,11 +1,13 @@
 #ifndef CLIENTSERVICE_H
 #define CLIENTSERVICE_H
 
+#include <QTimer>
 #include <QString>
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QVariantList>
 #include <memory>
+#include <QWebSocket>
 
 #include "clientdatabase.h"
 
@@ -49,6 +51,9 @@ signals:
     void messageSent();
     void messageFailed(const QString &message);
 
+    void messageReceived(const QString &sender, const QString &body,
+                            const QDateTime &sentAt);
+
     void eventsLoaded(const QVariantList &events);
     void eventsLoadFailed(const QString &message);
 
@@ -64,6 +69,44 @@ private:
 
     // One local SQLite database per signed-in account.
     std::unique_ptr<ClientDatabase> database;
+
+    // The open WebSocket line to the homeserver
+    QWebSocket liveSocket;
+
+    // Reconnect state for live socket.
+    QTimer reconnectTimer; // fires when it's time to try connecting again
+    int reconnectDelayMs = 1000; // current wait, doubles after each failed attempt
+    bool wantLive = false; // true while a user is logged in
+
+    // Heartbeat: detects a connection that died without telling us.
+    QTimer keepAliveTimer;          // Ticks every LiveKeepAliveMs while connected.
+    QTimer connectTimeoutTimer;
+    bool awaitingPong = false;      // True after we sent a ping and before the reply arrives.
+
+    // Opens the WebSocket connection to the homeerver's push port
+    void connectLive();
+
+    // Handles one text message pushed by the homeserver on the live socket
+    void handleLiveMessage(const QString &text);
+
+    // Applies one event from the homeserver. Stores it locally and tells the UI.
+    // Called when events are pushed over the live socket
+    void processEvent(qint64 id, const QJsonObject &body);
+
+    // Schedules another live-connection attempt after a growing delay
+    void scheduleReconnect();
+
+    // Highest homeserver event ID this account has processed (0 if none).
+    qint64 lastEventId();
+
+    // Saves id as the catch-up bookmark if it is newer than the stored one.
+    void rememberEventId(qint64 id);
+
+    // Fetches events newer than our bookmark and processes them.
+    void syncEvents();
+
+    // Heartbeat tick: drops the connection if our last ping went unanswered.
+    void checkLiveConnection();
 };
 
 #endif // CLIENTSERVICE_H

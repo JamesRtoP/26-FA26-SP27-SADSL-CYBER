@@ -5,9 +5,10 @@ project(homeserver VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
 
-find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql)
+# Qt modules the homeserver uses: Quick for the QML window, HttpServer for the web
+# routes, Sql for the PostgreSQL database, and WebSockets for live updates to clients.
+find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer Sql WebSockets)
 find_package(OpenSSL REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Quick HttpServer)
 
 qt_standard_project_setup(REQUIRES 6.10)
 
@@ -21,7 +22,17 @@ qt_add_executable(apphomeserver
     main.cpp
     database.h
     database.cpp
+    pushserver.h      # new: live WebSocket updates
+    pushserver.cpp
+    logmodel.h
+    logmodel.cpp
+    logger.h
+    logger.cpp
 )
+
+# Lets main.cpp save the log file inside the homeserver source folder.
+target_compile_definitions(apphomeserver PRIVATE
+    HOMESERVER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 qt_add_qml_module(apphomeserver
     URI homeserver
@@ -30,6 +41,10 @@ qt_add_qml_module(apphomeserver
         RESOURCES TEST.md
         SOURCES passwordhasher.h passwordhasher.cpp
         SOURCES demoUser.h
+        SOURCES logmodel.h
+        SOURCES logmodel.cpp
+        SOURCES logger.h
+        SOURCES logger.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
@@ -47,6 +62,7 @@ target_link_libraries(apphomeserver
     PRIVATE Qt6::Quick
     PRIVATE Qt6::HttpServer
     PRIVATE Qt6::Sql
+    PRIVATE Qt6::WebSockets   # new: lets us use QWebSocketServer
     PRIVATE OpenSSL::Crypto
 )
 

@@ -4,9 +4,12 @@ project(Q3_Client VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)
+set(OPENSSL_ROOT_DIR "C:/Program Files/OpenSSL-Win64")
+set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
+set(LIB_EAY "${OPENSSL_ROOT_DIR}/lib/VC/x64/MD/libcrypto.lib")
+set(SSL_EAY "${OPENSSL_ROOT_DIR}/lib/VC/x64/MD/libssl.lib")
 
-
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Sql)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Sql WebSockets)
 find_package(OpenSSL REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.10)
@@ -62,6 +65,7 @@ target_link_libraries(appQ3_Client
     PRIVATE Qt6::Quick # QML/UI
     PRIVATE Qt6::Network # lets the client send HTTP Requests
     PRIVATE Qt6::Sql # local SQLite message storage
+    PRIVATE Qt6::WebSockets # live connection to homeserver
     PRIVATE OpenSSL::Crypto
     PRIVATE OpenSSL::SSL
     PRIVATE Q3Crypto

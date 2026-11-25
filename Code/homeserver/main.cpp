@@ -1,6 +1,12 @@
 /*
  * Simplle homeserver to accept and respond to GET requests
  */
+#include "logger.h"
+#include "logmodel.h"
+
+#include <QDir>
+#include <QQmlContext>
+#include <QStandardPaths>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -14,6 +20,7 @@
 #include "database.h"
 #include "passwordhasher.h"
 #include "demoUser.h"
+#include "pushserver.h"
 
 QString healthCheck(){
     return "OK";
@@ -22,9 +29,21 @@ QString healthCheck(){
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+
+// Log file goes in homeserver/logs inside the source folder.
+    const QString logDir = QString(HOMESERVER_SOURCE_DIR) + "/logs";
+    QDir().mkpath(logDir);
+    const QString logPath = logDir + "/homeserver.log";
+
+    // The window reads logModel; routes call logger.log(...).
+    LogModel logModel;
+    Logger logger(logModel, logPath);
+    qInfo().noquote() << "Log file:" << logPath;
+
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
     Database database; // events are stored in PostgreSQL
+    PushServer pushServer(database); // live updates over WebSocket, separate from the HTTP server
 
     if(!database.open())
     {
@@ -40,6 +59,14 @@ int main(int argc, char *argv[])
     }
     else{
         qDebug() << "Listening on port" << tcpServer.serverPort();
+    }
+
+    // Start the WebSocket server on port 8081 (the HTTP server uses 8080).
+    // Clients will connect here and keep the connection open to receive new messages.
+    if (!pushServer.listen(8081)) {
+        qCritical() << "Push server failed to start on port 8081";
+    } else {
+        qDebug() << "Push server listening on port 8081";
     }
 
     // When someone requests /health, run healthCheck()
@@ -79,8 +106,14 @@ int main(int argc, char *argv[])
                     QHttpServerResponse::StatusCode::BadRequest);
             }
 
+            // Optional cursor: the client sends the highest event ID it already
+            // has, and we return only newer events. If it is missing, we start
+            // from the beginning, so older clients keep working.
+            const qint64 afterId =
+                qMax<qint64>(0, object.value("afterId").toInteger(0));
+
             const std::optional<QList<StoredEvent>> newEvents =
-                database.eventsForUser(*userId);
+                database.eventsForUser(*userId, afterId);
 
             if (!newEvents) {
                 return QHttpServerResponse(
@@ -103,7 +136,8 @@ int main(int argc, char *argv[])
                 QHttpServerResponse::StatusCode::Ok);
         });
 
-    server.route("/user/events", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    // Sending a message or starting a chat: the client POSTs an event here.
+    server.route("/user/events", QHttpServerRequest::Method::Post, [&database, &pushServer, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
@@ -111,6 +145,11 @@ int main(int argc, char *argv[])
             return QHttpServerResponse("Invalid JSON payload", QHttpServerResponse::StatusCode::BadRequest);
         }
         QJsonObject event = doc.object();
+
+        // The client includes its session token in the request. That token is a password
+        // for its account, so it must never be stored with the event or sent to the
+        // recipient. Remove it before doing anything else with the event.
+        event.remove("authToken");
 
         QList<qint64> userIDs;
         userIDs.append(database.user(event.value("sender").toString())->id);
@@ -120,19 +159,35 @@ int main(int argc, char *argv[])
             return QHttpServerResponse("Recipient Does Not Exist", QHttpServerResponse::StatusCode::InternalServerError);
         }
         userIDs.append(storedUser->id);
-        std::optional<qint64> id = database.addEvent(event);
 
-        std::optional<qint64> id2 = database.addEventForUsers(event,userIDs);
-        if(!id || !id2)
+        // Store the event once and add it to both the sender's and recipient's inboxes.
+        std::optional<qint64> id = database.addEventForUsers(event, userIDs);
+        if(!id)
         {
             qWarning() << "Failed to store event:" << database.lastError();
             return QHttpServerResponse("Failed to store event", QHttpServerResponse::StatusCode::InternalServerError);
         }
+
+        // Tell any recipient who is connected right now. The event is already saved,
+        // so anyone who is offline will still get it later.
+        pushServer.pushEvent(userIDs, *id, event);
+
+        // Describe what the event did instead of logging the raw request.
+        const QString sender = event.value("sender").toString();
+        const QString recipient = event.value("recipient").toString();
+        const QString type = event.value("eventType").toString();
+
+        if (type == "message")
+            logger.log(QString("%1 sent a message to %2").arg(sender, recipient));
+        else if (type == "start_chat")
+            logger.log(QString("%1 started a chat with %2").arg(sender, recipient));
+        else
+            logger.log(QString("%1 sent a %2 event to %3").arg(sender, type, recipient));
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
     // temporary test route for registration
-    server.route("/register", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/register", QHttpServerRequest::Method::Post, [&database, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
@@ -156,11 +211,11 @@ int main(int argc, char *argv[])
             qWarning() << "Failed to create user:" << database.lastError();
             return QHttpServerResponse("Failed to create user", QHttpServerResponse::StatusCode::InternalServerError);
         }
-
+        logger.log(QString("%1 registered").arg(username));
         return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
     });
 
-    server.route("/login", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/login", QHttpServerRequest::Method::Post, [&database, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
@@ -170,6 +225,7 @@ int main(int argc, char *argv[])
         std::optional<StoredUser> storedUser = database.user(username);
         if (!storedUser)
         {
+            logger.log(QString("Failed login attempt for %1").arg(username));
             return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
         }
 
@@ -179,6 +235,7 @@ int main(int argc, char *argv[])
 
         if (computedHash != storedUser->passwordHash)
         {
+            logger.log(QString("Failed login attempt for %1").arg(username));
             return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
         }
 
@@ -193,6 +250,7 @@ int main(int argc, char *argv[])
         QJsonObject response;
         // Send back the raw token to the client (client sends this back as a Bearer token in future requests)
         response["authToken"] = authToken;
+        logger.log(QString("%1 logged in").arg(username));
         return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
     });
 
@@ -208,6 +266,9 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
+
+    // Lets Main.qml use the name "logModel" to reach this C++ object.
+    engine.rootContext()->setContextProperty("logModel", &logModel);
     engine.loadFromModule("homeserver", "Main");
 
     return QGuiApplication::exec();
