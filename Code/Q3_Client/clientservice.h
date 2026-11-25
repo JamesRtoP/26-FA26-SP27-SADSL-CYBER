@@ -82,7 +82,7 @@ private:
     // One local SQLite database per signed-in account.
     std::unique_ptr<ClientDatabase> database;
 
-    void sendInitialMessage(const QString &recipient, const QJsonObject &keys)
+    void sendInitialMessage(const QString &recipient, const QJsonObject &keys);
 
 };
 
