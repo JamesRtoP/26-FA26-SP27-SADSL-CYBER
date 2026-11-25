@@ -3,9 +3,8 @@
 
 class QHttpServer;
 class Database;
-class QJsonObject;
-class qint64;
 
+#include <QJsonObject>
 /**
  * @brief Register POST /user/keys (publish own keys) and GET /user/keys (fetch a recipient's bundle).
  * @param server HTTP server to add the routes to.

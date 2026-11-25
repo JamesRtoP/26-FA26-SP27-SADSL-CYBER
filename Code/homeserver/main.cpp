@@ -140,7 +140,6 @@ int main(int argc, char *argv[])
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
         QString username = obj["username"].toString();
-
         if (database.user(username))
         {
             return QHttpServerResponse("Username Taken", QHttpServerResponse::StatusCode::BadRequest);
@@ -158,6 +157,12 @@ int main(int argc, char *argv[])
         {
             qWarning() << "Failed to create user:" << database.lastError();
             return QHttpServerResponse("Failed to create user", QHttpServerResponse::StatusCode::InternalServerError);
+        }
+        QJsonObject uploadedKeys = obj["SharedKeyBytesStorage"].toObject();
+
+        if(!addKeyBundleToDatabase(uploadedKeys, database, *userId))
+        {
+            return QHttpServerResponse("User Created, Keys Not Uploaded", QHttpServerResponse::StatusCode::Created);
         }
 
         return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
