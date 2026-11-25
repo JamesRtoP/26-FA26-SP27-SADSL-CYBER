@@ -30,6 +30,10 @@ qt_add_executable(apphomeserver
     logger.cpp
 )
 
+# Lets main.cpp save the log file inside the homeserver source folder.
+target_compile_definitions(apphomeserver PRIVATE
+    HOMESERVER_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
 qt_add_qml_module(apphomeserver
     URI homeserver
     QML_FILES

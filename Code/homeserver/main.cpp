@@ -30,8 +30,8 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    // Log file goes in the app's data folder, e.g. AppData\Roaming\apphomeserver.
-    const QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+// Log file goes in homeserver/logs inside the source folder.
+    const QString logDir = QString(HOMESERVER_SOURCE_DIR) + "/logs";
     QDir().mkpath(logDir);
     const QString logPath = logDir + "/homeserver.log";
 
