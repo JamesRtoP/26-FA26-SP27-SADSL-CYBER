@@ -16,6 +16,10 @@ if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/importedcontent)
 endif()
 
+if (NOT TARGET Q3Crypto)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Q3Crypto ${CMAKE_BINARY_DIR}/Q3Crypto)
+endif()
+
 
 qt_add_executable(apphomeserver
     main.cpp
@@ -50,6 +54,8 @@ target_link_libraries(apphomeserver
     PRIVATE Qt6::HttpServer
     PRIVATE Qt6::Sql
     PRIVATE OpenSSL::Crypto
+    PRIVATE Q3Crypto
+
 )
 
 install(TARGETS apphomeserver

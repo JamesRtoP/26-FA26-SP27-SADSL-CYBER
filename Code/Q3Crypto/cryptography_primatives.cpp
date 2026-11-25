@@ -192,7 +192,7 @@ namespace Q3Crypto
         }
 
         std::array<uint8_t, 64> signedStorage{};
-        size_t SignatureLength;//will end us as 64
+        size_t SignatureLength = signedStorage.size();//will end us as 64
 
         success = EVP_PKEY_sign(context, signedStorage.data(), &SignatureLength, plaintext.data(), plaintext.size()) == 1;
         if(!success)
@@ -690,7 +690,7 @@ namespace Q3Crypto
         encoded.data()[0] = 11;
 
         std::size_t length = PrivateKeySizeEd25519;
-        if (EVP_PKEY_get_raw_public_key(key.get(), encoded.data() + 1, &length) != 1 || length != PrivateKeySizeEd25519)
+        if (EVP_PKEY_get_raw_private_key(key.get(), encoded.data() + 1, &length) != 1 || length != PrivateKeySizeEd25519)
             throw std::runtime_error("encode: failed to export ED25519 public key");
         return encoded;
     }
@@ -750,8 +750,10 @@ namespace Q3Crypto
             throw std::runtime_error("decode ML-KEM-1024 private: failed to create context");
 
         if (EVP_PKEY_keygen_init(context) != 1)
+        {
             EVP_PKEY_CTX_free(context);
             throw std::runtime_error("decode ML-KEM-1024 private: failed to initialise keygen");
+        }
 
         OSSL_PARAM parameters[2];
         parameters[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_ML_KEM_SEED,
@@ -760,13 +762,17 @@ namespace Q3Crypto
         parameters[1] = OSSL_PARAM_construct_end();
 
         if (EVP_PKEY_CTX_set_params(context, parameters) != 1)
+        {
             EVP_PKEY_CTX_free(context);
             throw std::runtime_error("decode ML-KEM-1024 private: OpenSSL rejected the seed");
+        }
 
         EVP_PKEY* key = nullptr;
         if (EVP_PKEY_generate(context, &key) != 1)
+        {
             EVP_PKEY_CTX_free(context);
             throw std::runtime_error("decode ML-KEM-1024 private: failed to regenerate key from seed");
+        }
 
         EVP_PKEY_CTX_free(context);
         EVP_PKEY_ML_KEM_1024_ptr returnMe(key);

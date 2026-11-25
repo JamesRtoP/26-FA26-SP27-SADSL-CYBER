@@ -16,22 +16,9 @@ if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/importedcontent/CMakeLists.txt")
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/importedcontent)
 endif()
 
-#--Make Crytography folder into a static library--
-qt_add_library(Q3Crypto STATIC
-    cryptography_primatives.h   cryptography_primatives.cpp
-    SecretData.h
-
-    clientkeystorage.h clientkeystorage.cpp
-    sharedKeyBytesStorage.h sharedKeyBytesStorage.cpp
-    identitykeypair.h identitykeypair.cpp
-    identitykeypublic.h identitykeypublic.cpp
-    otherclientpublickeys.h otherclientpublickeys.cpp
-    pqxdh_functions.h pqxdh_functions.cpp
-#    crytography/kdf.h    src/crypto/kdf.cpp
-)
-target_include_directories(Q3Crypto PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(Q3Crypto PUBLIC Qt6::Core OpenSSL::Crypto)
-#---- end static lib
+if (NOT TARGET Q3Crypto)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Q3Crypto ${CMAKE_BINARY_DIR}/Q3Crypto)
+endif()
 
 qt_add_executable(appQ3_Client
     main.cpp
