@@ -15,11 +15,14 @@ namespace Q3Crypto
         std::vector<prekeyWithIdentifierSignedBytesX25519> curveBulkPrekeys;
         std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> pqkemBulkPrekeys;
     public:
+        SharedKeyBytesStorage(const QJsonObject& json);
         SharedKeyBytesStorage(identityKeyPublicBytes new_identity_keyBytes,
                          prekeyWithIdentifierSignedBytesX25519 new_curvePrekeyBytes,prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKeyBytes,
                          std::vector<prekeyWithIdentifierSignedBytesX25519> new_curveBulkPrekeysBytes, std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> new_pqkemBulkPrekeysBytes);
 
         bool checkSignatures ();
+        QJsonObject toJson() const;
+
     };
 }
 

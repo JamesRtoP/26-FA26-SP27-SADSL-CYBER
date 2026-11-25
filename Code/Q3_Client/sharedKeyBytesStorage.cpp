@@ -1,8 +1,57 @@
 #include "sharedKeyBytesStorage.h"
-#include "identitykeypublic.h".h"
+#include "identitykeypublic.h"
+#include <qjsonarray.h>
+
 
 namespace Q3Crypto
 {
+    SharedKeyBytesStorage::SharedKeyBytesStorage(const QJsonObject& json)
+    {
+        QJsonValue version = json.value("StorageType");
+        if (!version.isString() || version.toString() != "SharedKeyBytesStorage")
+            throw std::runtime_error("JSON: 'version' is missing or unsupported");
+
+        QJsonValue identityValue = json.value("identityKey");
+        if (!identityValue.isObject())
+            throw std::runtime_error("JSON: 'identityKey' is missing or not an object");
+        QJsonObject identity = identityValue.toObject();
+        base64FieldToBytes(identity, "x25519", this->identity_key.X25519_key.data(), this->identity_key.X25519_key.size());
+        base64FieldToBytes(identity, "ed25519", this->identity_key.Ed25519_key.data(), this->identity_key.Ed25519_key.size());
+
+        QJsonValue signedPrekeyValue = json.value("signedPrekey");
+        if (!signedPrekeyValue.isObject())
+            throw std::runtime_error("JSON: 'signedPrekey' is missing or not an object");
+        this->curvePrekey = curvePrekeyFromJson(signedPrekeyValue.toObject());
+
+        QJsonValue lastResortValue = json.value("lastResortPqkemPrekey");
+        if (!lastResortValue.isObject())
+            throw std::runtime_error("JSON: 'lastResortPqkemPrekey' is missing or not an object");
+        this->lastResortpqkemKey = pqkemPrekeyFromJson(lastResortValue.toObject());
+
+        QJsonValue curveArrayValue = json.value("oneTimeCurvePrekeys");
+        if (!curveArrayValue.isArray())
+            throw std::runtime_error("JSON: 'oneTimeCurvePrekeys' is missing or not an array");
+        QJsonArray curveArray = curveArrayValue.toArray();
+        this->curveBulkPrekeys.reserve(curveArray.size());
+        for (const QJsonValue& entry : curveArray)
+        {
+            if (!entry.isObject())
+                throw std::runtime_error("JSON: 'oneTimeCurvePrekeys' entry is not an object");
+            this->curveBulkPrekeys.push_back(curvePrekeyFromJson(entry.toObject()));
+        }
+
+        QJsonValue pqkemArrayValue = json.value("oneTimePqkemPrekeys");
+        if (!pqkemArrayValue.isArray())
+            throw std::runtime_error("JSON: 'oneTimePqkemPrekeys' is missing or not an array");
+        QJsonArray pqkemArray = pqkemArrayValue.toArray();
+        this->pqkemBulkPrekeys.reserve(pqkemArray.size());
+        for (const QJsonValue& entry : pqkemArray)
+        {
+            if (!entry.isObject())
+                throw std::runtime_error("JSON: 'oneTimePqkemPrekeys' entry is not an object");
+            this->pqkemBulkPrekeys.push_back(pqkemPrekeyFromJson(entry.toObject()));
+        }
+    }
 
     SharedKeyBytesStorage::SharedKeyBytesStorage(identityKeyPublicBytes new_identity_key,
                                        prekeyWithIdentifierSignedBytesX25519 new_curvePrekey,prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKey,
@@ -22,6 +71,30 @@ namespace Q3Crypto
                 checker.checkSignature(this->pqkemBulkPrekeys) &&
                checker.checkSignature(this->curvePrekey) &&
                checker.checkSignature(this->lastResortpqkemKey);
+    }
+
+    QJsonObject SharedKeyBytesStorage::toJson() const
+    {
+        QJsonObject identity;
+        identity["x25519"] = bytesToBase64(this->identity_key.X25519_key.data(), this->identity_key.X25519_key.size());
+        identity["ed25519"] = bytesToBase64(this->identity_key.Ed25519_key.data(), this->identity_key.Ed25519_key.size());
+
+        QJsonArray curveArray;
+        for (const prekeyWithIdentifierSignedBytesX25519& prekey : this->curveBulkPrekeys)
+            curveArray.append(curvePrekeyToJson(prekey));
+
+        QJsonArray pqkemArray;
+        for (const prekeyWithIdentifierSignedBytesML_KEM_1024& prekey : this->pqkemBulkPrekeys)
+            pqkemArray.append(pqkemPrekeyToJson(prekey));
+
+        QJsonObject json;
+        json["StorageType"] = "SharedKeyBytesStorage";
+        json["identityKey"] = identity;
+        json["signedPrekey"] = curvePrekeyToJson(this->curvePrekey);
+        json["lastResortPqkemPrekey"] = pqkemPrekeyToJson(this->lastResortpqkemKey);
+        json["oneTimeCurvePrekeys"] = curveArray;
+        json["oneTimePqkemPrekeys"] = pqkemArray;
+        return json;
     }
 
 }
