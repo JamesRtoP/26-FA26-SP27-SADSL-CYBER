@@ -2,6 +2,18 @@
 
 namespace Q3Crypto
 {
+    otherClientPublicKeys::otherClientPublicKeys(const QJsonObject& keyBundle):IK_B(keyBundle)
+    {
+        verificationStep verifier(keyBundle);
+        if (!verifier.checkSignatures())
+            throw std::runtime_error("Key bundle signature check failed");
+        this->OPK_B = {decodePublicX25519(verifier.OPK_B.key) ,verifier.OPK_B.identifier};
+        this->PQPK_B = {decodePublicML_KEM_1024(verifier.PQPK_B.key), verifier.PQPK_B.identifier};
+        this->SPK_B = {decodePublicX25519(verifier.SPK_B.key) ,verifier.SPK_B.identifier};
+
+    }
+
+
     PQXDHInitialMessage otherClientPublicKeys::generateInitialMessage(IdentityKeyPair& IK_A, EVP_PKEY_X25519_ptr& EK_A, std::string plaintext, SecretData<32>& SK)
     {
         ML_KEM_1024Result CTandSS = encapsulateWithML_KEM_1024(this->PQPK_B.key);
