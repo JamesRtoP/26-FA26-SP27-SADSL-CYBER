@@ -74,11 +74,6 @@ ApplicationWindow {
     palette.highlight: root.selection
     palette.highlightedText: root.selectedText
 
-    // Log entries shown in the log panel. Nothing writes to it yet. To add a
-    // line later, call: logModel.append({ message: "text" })
-    ListModel {
-        id: logModel
-    }
 
     component AppButton: Button {
         id: control
@@ -347,6 +342,7 @@ ApplicationWindow {
                         spacing: 4
                         model: logModel
 
+                        onCountChanged: positionViewAtEnd()
                         ScrollBar.vertical: ScrollBar {}
 
                         delegate: Text {

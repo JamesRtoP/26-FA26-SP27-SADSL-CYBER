@@ -24,6 +24,10 @@ qt_add_executable(apphomeserver
     database.cpp
     pushserver.h      # new: live WebSocket updates
     pushserver.cpp
+    logmodel.h
+    logmodel.cpp
+    logger.h
+    logger.cpp
 )
 
 qt_add_qml_module(apphomeserver
@@ -33,6 +37,10 @@ qt_add_qml_module(apphomeserver
         RESOURCES TEST.md
         SOURCES passwordhasher.h passwordhasher.cpp
         SOURCES demoUser.h
+        SOURCES logmodel.h
+        SOURCES logmodel.cpp
+        SOURCES logger.h
+        SOURCES logger.cpp
 )
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

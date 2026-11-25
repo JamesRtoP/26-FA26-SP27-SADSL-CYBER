@@ -1,6 +1,12 @@
 /*
  * Simplle homeserver to accept and respond to GET requests
  */
+#include "logger.h"
+#include "logmodel.h"
+
+#include <QDir>
+#include <QQmlContext>
+#include <QStandardPaths>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -23,6 +29,17 @@ QString healthCheck(){
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+
+    // Log file goes in the app's data folder, e.g. AppData\Roaming\apphomeserver.
+    const QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(logDir);
+    const QString logPath = logDir + "/homeserver.log";
+
+    // The window reads logModel; routes call logger.log(...).
+    LogModel logModel;
+    Logger logger(logModel, logPath);
+    qInfo().noquote() << "Log file:" << logPath;
+
     QHttpServer server; // handles the HTTP requests
     QTcpServer tcpServer; // listens on the port
     Database database; // events are stored in PostgreSQL
@@ -120,7 +137,7 @@ int main(int argc, char *argv[])
         });
 
     // Sending a message or starting a chat: the client POSTs an event here.
-    server.route("/user/events", QHttpServerRequest::Method::Post, [&database, &pushServer](const QHttpServerRequest &request)
+    server.route("/user/events", QHttpServerRequest::Method::Post, [&database, &pushServer, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         if(!doc.isObject())
@@ -155,11 +172,22 @@ int main(int argc, char *argv[])
         // so anyone who is offline will still get it later.
         pushServer.pushEvent(userIDs, *id, event);
 
+        // Describe what the event did instead of logging the raw request.
+        const QString sender = event.value("sender").toString();
+        const QString recipient = event.value("recipient").toString();
+        const QString type = event.value("eventType").toString();
+
+        if (type == "message")
+            logger.log(QString("%1 sent a message to %2").arg(sender, recipient));
+        else if (type == "start_chat")
+            logger.log(QString("%1 started a chat with %2").arg(sender, recipient));
+        else
+            logger.log(QString("%1 sent a %2 event to %3").arg(sender, type, recipient));
         return QHttpServerResponse(QJsonObject{{"id", *id}}, QHttpServerResponse::StatusCode::Created);
     });
 
     // temporary test route for registration
-    server.route("/register", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/register", QHttpServerRequest::Method::Post, [&database, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
@@ -183,11 +211,11 @@ int main(int argc, char *argv[])
             qWarning() << "Failed to create user:" << database.lastError();
             return QHttpServerResponse("Failed to create user", QHttpServerResponse::StatusCode::InternalServerError);
         }
-
+        logger.log(QString("%1 registered").arg(username));
         return QHttpServerResponse("User Created", QHttpServerResponse::StatusCode::Created);
     });
 
-    server.route("/login", QHttpServerRequest::Method::Post, [&database](const QHttpServerRequest &request)
+    server.route("/login", QHttpServerRequest::Method::Post, [&database, &logger](const QHttpServerRequest &request)
     {
         QJsonDocument doc = QJsonDocument::fromJson(request.body());
         QJsonObject obj = doc.object();
@@ -197,6 +225,7 @@ int main(int argc, char *argv[])
         std::optional<StoredUser> storedUser = database.user(username);
         if (!storedUser)
         {
+            logger.log(QString("Failed login attempt for %1").arg(username));
             return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
         }
 
@@ -206,6 +235,7 @@ int main(int argc, char *argv[])
 
         if (computedHash != storedUser->passwordHash)
         {
+            logger.log(QString("Failed login attempt for %1").arg(username));
             return QHttpServerResponse("Incorrect Username or Password", QHttpServerResponse::StatusCode::BadRequest);
         }
 
@@ -220,6 +250,7 @@ int main(int argc, char *argv[])
         QJsonObject response;
         // Send back the raw token to the client (client sends this back as a Bearer token in future requests)
         response["authToken"] = authToken;
+        logger.log(QString("%1 logged in").arg(username));
         return QHttpServerResponse("application/json", QJsonDocument(response).toJson(QJsonDocument::Compact), QHttpServerResponse::StatusCode::Ok);
     });
 
@@ -235,6 +266,9 @@ int main(int argc, char *argv[])
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
+
+    // Lets Main.qml use the name "logModel" to reach this C++ object.
+    engine.rootContext()->setContextProperty("logModel", &logModel);
     engine.loadFromModule("homeserver", "Main");
 
     return QGuiApplication::exec();
