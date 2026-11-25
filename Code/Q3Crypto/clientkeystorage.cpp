@@ -73,6 +73,12 @@ namespace Q3Crypto
         SecretData<32> SS = decapsulateWithML_KEM_1024(PQPK_B, message.PQKEMCiphertext);
         SecretData<32> SK = generateHKDFKey(concatinateKDFInputs(DH_1, DH_2, DH_3, DH_4, SS).span());
         SS.wipe();
+        std::vector<uint8_t> AD = generateAD(IK_A.getBytes(), IK_B.getPublicBytes(), PQPK_B);
+        decryptWithAES_256_GCM(SK, message.initialCiphertext, AD);
+
+        this->pqkemBulkPrekeys.erase(PQPK_B_iterator);
+        this->curveBulkPrekeys.erase(OPK_B_iterator);
+
         return SK;
     }
 
