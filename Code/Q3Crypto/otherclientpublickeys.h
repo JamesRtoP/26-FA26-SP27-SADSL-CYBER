@@ -4,26 +4,11 @@
 #include "sharedKeyBytesStorage.h"
 #include "identitykeypublic.h"
 #include "pqxdh_functions.h"
+#include "pqxdh_functions.h"
 #include <QJsonObject>
 
 namespace Q3Crypto
 {
-    struct identitfierInfo
-    {
-        int SPK_B_Identifier;
-        int PQPK_B_Identifier;
-        int OPK_B_Identifier;
-    };
-
-    struct PQXDHInitialMessage
-    {
-        identityKeyPublicBytes IK_B;
-        std::array<uint8_t, PublicKeySizeX25519 + 1> EK_B;
-        std::array<uint8_t, 1568> PQKEMCiphertext;
-        identitfierInfo keyIdentifiers;
-        AES_256Result initialCiphertext;
-    };
-
     class otherClientPublicKeys
     {
     private:

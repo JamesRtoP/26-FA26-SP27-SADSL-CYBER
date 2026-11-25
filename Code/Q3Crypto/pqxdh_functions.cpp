@@ -34,4 +34,78 @@ namespace Q3Crypto
         return AD;
     }
 
+    QJsonObject initialMessageToJson(const PQXDHInitialMessage& message)
+    {
+        QJsonObject json;
+        json["identityKey"] = bytesToBase64(message.IK_B.X25519_key.data(), message.IK_B.X25519_key.size());
+        json["identitySigningKey"] = bytesToBase64(message.IK_B.Ed25519_key.data(), message.IK_B.Ed25519_key.size());
+        json["ephemeralKey"] = bytesToBase64(message.EK_B.data(), message.EK_B.size());
+        json["pqCiphertext"] = bytesToBase64(message.PQKEMCiphertext.data(), message.PQKEMCiphertext.size());
+
+        json["signedPreKeyId"] = message.keyIdentifiers.SPK_B_Identifier;
+        json["pqPreKeyId"] = message.keyIdentifiers.PQPK_B_Identifier;
+        if (message.keyIdentifiers.OPK_B_Identifier >= 0)          // -1 means no one-time curve prekey was used
+            json["oneTimePreKeyId"] = message.keyIdentifiers.OPK_B_Identifier;
+
+        json["nonce"] = bytesToBase64(message.initialCiphertext.nonce.data(), message.initialCiphertext.nonce.size());
+        json["ciphertext"] = bytesToBase64(message.initialCiphertext.ciphertext.data(), message.initialCiphertext.ciphertext.size());
+        json["tag"] = bytesToBase64(message.initialCiphertext.tag.data(), message.initialCiphertext.tag.size());
+        return json;
+    }
+
+    PQXDHInitialMessage initialMessageFromJson(const QJsonObject& json)
+    {
+        PQXDHInitialMessage message;
+
+        // ---- fixed-size fields ----
+        base64FieldToBytes(json, "identityKey",
+                           message.IK_B.X25519_key.data(), message.IK_B.X25519_key.size());
+        base64FieldToBytes(json, "identitySigningKey",
+                           message.IK_B.Ed25519_key.data(), message.IK_B.Ed25519_key.size());
+        base64FieldToBytes(json, "ephemeralKey", message.EK_B.data(), message.EK_B.size());
+        base64FieldToBytes(json, "pqCiphertext", message.PQKEMCiphertext.data(), message.PQKEMCiphertext.size());
+        base64FieldToBytes(json, "nonce",
+                           message.initialCiphertext.nonce.data(), message.initialCiphertext.nonce.size());
+        base64FieldToBytes(json, "tag",
+                           message.initialCiphertext.tag.data(), message.initialCiphertext.tag.size());
+
+        // ---- key identifiers ----
+        QJsonValue signedPreKeyId = json.value("signedPreKeyId");
+        if (!signedPreKeyId.isDouble() || signedPreKeyId.toInt() < 0
+            || static_cast<double>(signedPreKeyId.toInt()) != signedPreKeyId.toDouble())
+            throw std::runtime_error("JSON: 'signedPreKeyId' is missing or not a valid ID");
+        message.keyIdentifiers.SPK_B_Identifier = signedPreKeyId.toInt();
+
+        QJsonValue pqPreKeyId = json.value("pqPreKeyId");
+        if (!pqPreKeyId.isDouble() || pqPreKeyId.toInt() < 0
+            || static_cast<double>(pqPreKeyId.toInt()) != pqPreKeyId.toDouble())
+            throw std::runtime_error("JSON: 'pqPreKeyId' is missing or not a valid ID");
+        message.keyIdentifiers.PQPK_B_Identifier = pqPreKeyId.toInt();
+
+        if (json.contains("oneTimePreKeyId"))
+        {
+            QJsonValue oneTimePreKeyId = json.value("oneTimePreKeyId");
+            if (!oneTimePreKeyId.isDouble() || oneTimePreKeyId.toInt() < 0
+                || static_cast<double>(oneTimePreKeyId.toInt()) != oneTimePreKeyId.toDouble())
+                throw std::runtime_error("JSON: 'oneTimePreKeyId' is not a valid ID");
+            message.keyIdentifiers.OPK_B_Identifier = oneTimePreKeyId.toInt();
+        }
+        else
+        {
+            message.keyIdentifiers.OPK_B_Identifier = -1;           // Alice used no one-time curve prekey
+        }
+
+        // ---- variable-length ciphertext ----
+        QJsonValue ciphertextValue = json.value("ciphertext");
+        if (!ciphertextValue.isString())
+            throw std::runtime_error("JSON: 'ciphertext' is missing or not a string");
+        QByteArray::FromBase64Result decoded = QByteArray::fromBase64Encoding(
+            ciphertextValue.toString().toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
+        if (!decoded)
+            throw std::runtime_error("JSON: 'ciphertext' is not valid Base64");
+        message.initialCiphertext.ciphertext.assign(decoded.decoded.begin(), decoded.decoded.end());
+
+        return message;
+    }
+
 }
