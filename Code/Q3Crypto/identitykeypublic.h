@@ -13,6 +13,8 @@ namespace Q3Crypto
     public:
         IdentityKeyPublic(identityKeyPublicBytes keyBytes);
         IdentityKeyPublic(const IdentityKeyPair& keyBytes);
+        IdentityKeyPublic(const QJsonObject& keys);
+
 
         bool checkSignature(prekeyWithIdentifierSignedBytesML_KEM_1024 checkMe);
         bool checkSignature(prekeyWithIdentifierSignedBytesX25519 checkMe);

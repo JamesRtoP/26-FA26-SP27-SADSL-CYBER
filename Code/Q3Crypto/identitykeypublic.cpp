@@ -15,6 +15,15 @@ namespace Q3Crypto
 
     }
 
+    IdentityKeyPublic::IdentityKeyPublic(const QJsonObject& keys)
+    {
+        identityKeyPublicBytes IDBytes;
+        base64FieldToBytes(keys, "identityKey", IDBytes.X25519_key.data(), IDBytes.X25519_key.size());
+        base64FieldToBytes(keys, "identitySigningKey", IDBytes.Ed25519_key.data(), IDBytes.Ed25519_key.size());
+        this->Ed25519Key = decodePublicEd25519(IDBytes.Ed25519_key);
+        this->X25519Key = decodePublicX25519(IDBytes.X25519_key);
+    }
+
     bool IdentityKeyPublic::checkSignature(prekeyWithIdentifierSignedBytesML_KEM_1024 checkMe)
     {
         return checkSignWithEd25519(this->Ed25519Key, checkMe.signature, checkMe.key);
