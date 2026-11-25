@@ -17,6 +17,8 @@ namespace Q3Crypto
         int nextpqkemBulkPrekeysIdentifier;
         std::vector<prekeyWithIdentifierML_KEM_1024> pqkemBulkPrekeys;
 
+        std::vector<prekeyWithIdentifierBytesX25519> getCurveBulkPrekeyBytes();
+
     public:
         ClientKeyStorage();
         //ClientKeyStorage(identityKeyPairBytes identity_key_bytes, );

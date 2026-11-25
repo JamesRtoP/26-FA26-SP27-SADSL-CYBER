@@ -779,7 +779,15 @@ namespace Q3Crypto
         return QString::fromLatin1(raw.toBase64());
     }
 
-    QJsonObject curvePrekeyToJson(const prekeyWithIdentifierSignedBytesX25519& prekey)
+    QJsonObject curvePrekeyToJson(const prekeyWithIdentifierBytesX25519& prekey)
+    {
+        QJsonObject json;
+        json["id"] = prekey.identifier;
+        json["key"] = bytesToBase64(prekey.key.data(), prekey.key.size());
+        return json;
+    }
+
+    QJsonObject curvePrekeySignedToJson(const prekeyWithIdentifierSignedBytesX25519& prekey)
     {
         QJsonObject json;
         json["id"] = prekey.identifier;
@@ -788,7 +796,7 @@ namespace Q3Crypto
         return json;
     }
 
-    QJsonObject pqkemPrekeyToJson(const prekeyWithIdentifierSignedBytesML_KEM_1024& prekey)
+    QJsonObject pqkemPrekeySignedToJson(const prekeyWithIdentifierSignedBytesML_KEM_1024& prekey)
     {
         QJsonObject json;
         json["id"] = prekey.identifier;
@@ -815,7 +823,20 @@ namespace Q3Crypto
         std::memcpy(out, decoded.decoded.constData(), expectedSize);
     }
 
-    prekeyWithIdentifierSignedBytesX25519 curvePrekeyFromJson(const QJsonObject& json)
+    prekeyWithIdentifierBytesX25519 curvePrekeyFromJson(const QJsonObject& json)
+    {
+        prekeyWithIdentifierBytesX25519 prekey;
+
+        QJsonValue id = json.value("id");
+        if (!id.isDouble() || static_cast<double>(id.toInt()) != id.toDouble())
+            throw std::runtime_error("JSON: curve prekey 'id' is missing or not an integer");
+        prekey.identifier = id.toInt();
+
+        base64FieldToBytes(json, "key", prekey.key.data(), prekey.key.size());
+        return prekey;
+    }
+
+    prekeyWithIdentifierSignedBytesX25519 curvePrekeySignedFromJson(const QJsonObject& json)
     {
         prekeyWithIdentifierSignedBytesX25519 prekey;
 
@@ -829,7 +850,7 @@ namespace Q3Crypto
         return prekey;
     }
 
-    prekeyWithIdentifierSignedBytesML_KEM_1024 pqkemPrekeyFromJson(const QJsonObject& json)
+    prekeyWithIdentifierSignedBytesML_KEM_1024 pqkemPrekeySignedFromJson(const QJsonObject& json)
     {
         prekeyWithIdentifierSignedBytesML_KEM_1024 prekey;
 

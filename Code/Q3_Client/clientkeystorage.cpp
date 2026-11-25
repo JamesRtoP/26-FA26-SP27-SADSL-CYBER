@@ -4,6 +4,16 @@
 namespace Q3Crypto
 {
 
+    std::vector<prekeyWithIdentifierBytesX25519> ClientKeyStorage::getCurveBulkPrekeyBytes()
+    {
+        std::vector<prekeyWithIdentifierBytesX25519> returnMe;
+        for(int i = 0; i < this->curveBulkPrekeys.size(); i++)
+        {
+            returnMe.push_back({encodePublicX25519(this->curveBulkPrekeys[i].key),this->curveBulkPrekeys[i].identifier});
+        }
+        return returnMe;
+    }
+
     ClientKeyStorage::ClientKeyStorage()
     {
         this->curvePrekey = {generateX25519Key(), 0};
@@ -22,7 +32,7 @@ namespace Q3Crypto
         identityKeyPublicBytes IDKeyBytes = this->identity_key.getPublicBytes();
         prekeyWithIdentifierSignedBytesX25519 new_curvePrekey = this->identity_key.signPublicPrekeyX25519(this->curvePrekey);
         prekeyWithIdentifierSignedBytesML_KEM_1024 new_lastResortpqkemKey = this->identity_key.signPublicPrekeyML_KEM_1024(this->lastResortpqkemKey);
-        std::vector<prekeyWithIdentifierSignedBytesX25519> new_curveBulkPrekeys = this->identity_key.signBulkPublicPrekeysX25519(this->curveBulkPrekeys);
+        std::vector<prekeyWithIdentifierBytesX25519> new_curveBulkPrekeys = this->getCurveBulkPrekeyBytes();
         std::vector<prekeyWithIdentifierSignedBytesML_KEM_1024> new_pqkemBulkPrekeys = this->identity_key.signBulkPublicPrekeysML_KEM_1024(this->pqkemBulkPrekeys);
         return SharedKeyBytesStorage (IDKeyBytes, new_curvePrekey, new_lastResortpqkemKey, new_curveBulkPrekeys, new_pqkemBulkPrekeys);
 

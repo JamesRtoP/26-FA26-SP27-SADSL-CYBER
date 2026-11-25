@@ -37,7 +37,7 @@ void ClientService::registerUser(const QString &username,
     QJsonObject data;
     data["username"] = username;
     data["password"] = password;
-    //GGG add json conversion for shareMe;
+    data["SharedKeyBytesStorage"] = shareMe.toJson();
 
 
     // wrap JSON object in JSON document of bytes

@@ -90,54 +90,6 @@ namespace Q3Crypto
         return outList;
     }
 
-    std::vector<prekeyWithIdentifierSignedBytesX25519> IdentityKeyPair::signBulkPublicPrekeysX25519(const std::vector<prekeyWithIdentifierX25519>& inList)
-    {
-        std::vector<prekeyWithIdentifierSignedBytesX25519> outList;
-
-        EVP_SIGNATURE* signingAlgorithm = EVP_SIGNATURE_fetch(nullptr, "ED25519", nullptr);
-        if (!signingAlgorithm){throw std::runtime_error("Failed to fetch ED25519 algorithm");}
-
-        EVP_PKEY_CTX* context = EVP_PKEY_CTX_new_from_pkey(nullptr, this->Ed25519Key.get(), nullptr);
-        if(!context)
-        {
-            EVP_SIGNATURE_free(signingAlgorithm);
-            throw std::runtime_error("Failed to create EVP_MD_CTX");
-        }
-
-        for(int i = 0; i < inList.size(); i++)
-        {
-            bool success = EVP_PKEY_sign_message_init(context, signingAlgorithm, nullptr) == 1;
-            if(!success)
-            {
-                EVP_PKEY_CTX_free(context);
-                EVP_SIGNATURE_free(signingAlgorithm);
-                throw std::runtime_error("Failed to Add Algorithm to Context");
-            }
-
-            std::array<uint8_t, 64> signedStorage{};
-            size_t SignatureLength;//will end us as 64
-
-            std::array<std::uint8_t, PublicKeySizeX25519 + 1> plaintext = encodePublicX25519(inList[i].key);
-
-            success = EVP_PKEY_sign(context, signedStorage.data(), &SignatureLength, plaintext.data(), plaintext.size()) == 1;
-            if(!success)
-            {
-                EVP_PKEY_CTX_free(context);
-                EVP_SIGNATURE_free(signingAlgorithm);
-                throw std::runtime_error("Failed to Sign to Plaintext");
-            }
-
-            outList.push_back({encodePublicX25519(inList[i].key), inList[i].identifier, signedStorage});
-        }
-
-
-        EVP_PKEY_CTX_free(context);
-        EVP_SIGNATURE_free(signingAlgorithm);
-
-
-        return outList;
-    }
-
     const EVP_PKEY_X25519_ptr& IdentityKeyPair::getX25519Key()
     {
         return this->X25519Key;
