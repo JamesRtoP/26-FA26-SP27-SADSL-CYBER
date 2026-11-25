@@ -206,3 +206,33 @@ void addKeyRoutes(QHttpServer &server, Database &database)
         return QHttpServerResponse(QJsonObject{{"keys", keys}}, Status::Ok);
     });
 }
+
+bool addKeyBundleToDatabase(QJsonObject keys, Database &database, qint64 userId)
+{
+    const std::optional<QByteArray> identityKey = keyBytes(keys, "identityKey");
+    const std::optional<OneTimePreKey> signedPreKey = preKey(keys.value("signedPreKey"), true);
+    const std::optional<OneTimePreKey> pqSignedPreKey = preKey(keys.value("pqSignedPreKey"), true);
+    const std::optional<QList<OneTimePreKey>> curvePreKeys = preKeyList(keys, "oneTimePreKeys", false);
+    const std::optional<QList<OneTimePreKey>> pqPreKeys = preKeyList(keys, "pqOneTimePreKeys", true);
+    if (!identityKey || !signedPreKey || !pqSignedPreKey || !curvePreKeys || !pqPreKeys)
+        return false;
+
+    // Store only recognized fields, re-encoded, so every bundle has the documented shape.
+    QJsonObject bundle{{"identityKey", QString::fromLatin1(identityKey->toBase64())},
+                       {"signedPreKey", preKeyJson(*signedPreKey)},
+                       {"pqSignedPreKey", preKeyJson(*pqSignedPreKey)}};
+    // The Ed25519 half of a split identity key, when the client publishes one.
+    if (keys.contains("identitySigningKey")) {
+        const std::optional<QByteArray> signingKey = keyBytes(keys, "identitySigningKey");
+        if (!signingKey)
+            return false;
+        bundle["identitySigningKey"] = QString::fromLatin1(signingKey->toBase64());
+    }
+
+    const std::optional<PreKeyCounts> counts =
+        database.storeKeyBundle(userId, bundle, *curvePreKeys, *pqPreKeys);
+    if (!counts) {
+        return false;
+    }
+    return true;
+}
