@@ -3,6 +3,8 @@
 
 #include <openssl/evp.h>
 #include "SecretData.h"
+#include <QString>
+#include <QJsonObject>
 //#include "EncodeAndDecode.h"
 
 #include <vector>
@@ -134,6 +136,14 @@ namespace Q3Crypto
     EVP_PKEY_X25519_ptr decodePrivateX25519(SecretData<PrivateKeySizeX25519 + 1> encoded);
     EVP_PKEY_Ed25519_ptr decodePrivateEd25519(SecretData<PrivateKeySizeEd25519 + 1> encoded);
     EVP_PKEY_ML_KEM_1024_ptr decodePrivateML_KEM_1024(const SecretData<PrivateKeySizeML_KEM_1024 + 1>& encoded);
+
+    QString bytesToBase64(const std::uint8_t* data, std::size_t size);
+    QJsonObject curvePrekeyToJson(const prekeyWithIdentifierSignedBytesX25519& prekey);
+    QJsonObject pqkemPrekeyToJson(const prekeyWithIdentifierSignedBytesML_KEM_1024& prekey);
+
+    void base64FieldToBytes(const QJsonObject& json, const char* field, std::uint8_t* out, std::size_t expectedSize);
+    prekeyWithIdentifierSignedBytesX25519 curvePrekeyFromJson(const QJsonObject& json);
+    prekeyWithIdentifierSignedBytesML_KEM_1024 pqkemPrekeyFromJson(const QJsonObject& json);
 
 
 }

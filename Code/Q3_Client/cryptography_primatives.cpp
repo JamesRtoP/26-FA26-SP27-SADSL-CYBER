@@ -773,4 +773,75 @@ namespace Q3Crypto
         return returnMe;
     }
 
+    QString bytesToBase64(const std::uint8_t* data, std::size_t size)
+    {
+        QByteArray raw(reinterpret_cast<const char*>(data), static_cast<qsizetype>(size));
+        return QString::fromLatin1(raw.toBase64());
+    }
+
+    QJsonObject curvePrekeyToJson(const prekeyWithIdentifierSignedBytesX25519& prekey)
+    {
+        QJsonObject json;
+        json["id"] = prekey.identifier;
+        json["key"] = bytesToBase64(prekey.key.data(), prekey.key.size());
+        json["signature"] = bytesToBase64(prekey.signature.data(), prekey.signature.size());
+        return json;
+    }
+
+    QJsonObject pqkemPrekeyToJson(const prekeyWithIdentifierSignedBytesML_KEM_1024& prekey)
+    {
+        QJsonObject json;
+        json["id"] = prekey.identifier;
+        json["key"] = bytesToBase64(prekey.key.data(), prekey.key.size());
+        json["signature"] = bytesToBase64(prekey.signature.data(), prekey.signature.size());
+        return json;
+    }
+
+    void base64FieldToBytes(const QJsonObject& json, const char* field, std::uint8_t* out, std::size_t expectedSize)
+    {
+        QJsonValue value = json.value(QLatin1String(field));
+        if (!value.isString())
+            throw std::runtime_error(std::string("JSON: field '") + field + "' is missing or not a string");
+
+        QByteArray::FromBase64Result decoded = QByteArray::fromBase64Encoding(value.toString().toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
+        if (!decoded)
+            throw std::runtime_error(std::string("JSON: field '") + field + "' is not valid Base64");
+
+        if (static_cast<std::size_t>(decoded.decoded.size()) != expectedSize)
+            throw std::runtime_error(std::string("JSON: field '") + field + "' should decode to "
+                                     + std::to_string(expectedSize) + " bytes, got "
+                                     + std::to_string(decoded.decoded.size()));
+
+        std::memcpy(out, decoded.decoded.constData(), expectedSize);
+    }
+
+    prekeyWithIdentifierSignedBytesX25519 curvePrekeyFromJson(const QJsonObject& json)
+    {
+        prekeyWithIdentifierSignedBytesX25519 prekey;
+
+        QJsonValue id = json.value("id");
+        if (!id.isDouble() || static_cast<double>(id.toInt()) != id.toDouble())
+            throw std::runtime_error("JSON: curve prekey 'id' is missing or not an integer");
+        prekey.identifier = id.toInt();
+
+        base64FieldToBytes(json, "key", prekey.key.data(), prekey.key.size());
+        base64FieldToBytes(json, "signature", prekey.signature.data(), prekey.signature.size());
+        return prekey;
+    }
+
+    prekeyWithIdentifierSignedBytesML_KEM_1024 pqkemPrekeyFromJson(const QJsonObject& json)
+    {
+        prekeyWithIdentifierSignedBytesML_KEM_1024 prekey;
+
+        QJsonValue id = json.value("id");
+        if (!id.isDouble() || static_cast<double>(id.toInt()) != id.toDouble())
+            throw std::runtime_error("JSON: pqkem prekey 'id' is missing or not an integer");
+        prekey.identifier = id.toInt();
+
+        base64FieldToBytes(json, "key", prekey.key.data(), prekey.key.size());
+        base64FieldToBytes(json, "signature", prekey.signature.data(), prekey.signature.size());
+        return prekey;
+    }
+
+
 }

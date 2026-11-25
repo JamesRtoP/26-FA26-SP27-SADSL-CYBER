@@ -2,6 +2,7 @@
 #define SHAREDKEYBYTESSTORAGE_H
 
 #include "cryptography_primatives.h"
+#include <QJsonObject>
 
 namespace Q3Crypto
 {

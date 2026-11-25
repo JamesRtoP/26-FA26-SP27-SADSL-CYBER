@@ -33,7 +33,7 @@ namespace Q3Crypto
 
 
     public:
-        //otherClientPublicKeys();
+        otherClientPublicKeys();
         PQXDHInitialMessage generateInitialMessage(IdentityKeyPair& IK_A, EVP_PKEY_X25519_ptr& EK_A, std::string plaintext, SecretData<32>& SK);
     };
 }
