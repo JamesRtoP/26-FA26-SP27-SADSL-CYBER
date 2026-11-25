@@ -71,7 +71,7 @@ signals:
 
 private:
     std::unique_ptr<Q3Crypto::ClientKeyStorage> keys;
-    std::unordered_map<std::string, Q3Crypto::SecretData<64>> handshakeKeys;
+    std::unordered_map<QString, Q3Crypto::SecretData<32>> handshakeKeys;
 
     bool openDatabase(const QString &username);
 
@@ -81,6 +81,9 @@ private:
 
     // One local SQLite database per signed-in account.
     std::unique_ptr<ClientDatabase> database;
+
+    void sendInitialMessage(const QString &recipient, const QJsonObject &keys)
+
 };
 
 #endif // CLIENTSERVICE_H

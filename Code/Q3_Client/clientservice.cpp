@@ -111,42 +111,87 @@ void ClientService::loginUser(const QString &username, const QString &password)
 }
 
 /*
- * Sends a request to the homeserver to start a chat with another user
- * Start chat -> POST /user/events
+ * Starts a chat: fetches the recipient's keys, then sends the PQXDH initial message
+ * Start chat -> GET /user/keys -> POST /user/events
  */
-void ClientService::startChat(const QString &recipient){
+void ClientService::startChat(const QString &recipient)
+{
+    if (!this->keys) {
+        emit chatFailed("Your keys are not loaded");
+        return;
+    }
+
+    // Wait for this recipient's result only, then disconnect both handlers
+    auto onSuccess = std::make_shared<QMetaObject::Connection>();
+    auto onFailure = std::make_shared<QMetaObject::Connection>();
+
+    *onSuccess = connect(this, &ClientService::publicKeysRetrieved, this,
+                         [this, recipient, onSuccess, onFailure](const QString &who, const QJsonObject &keys) {
+                             if (who != recipient)
+                                 return;
+                             disconnect(*onSuccess);
+                             disconnect(*onFailure);
+                             sendInitialMessage(recipient, keys);
+                         });
+
+    *onFailure = connect(this, &ClientService::publicKeysRetrievalFailed, this,
+                         [this, recipient, onSuccess, onFailure](const QString &who, const QString &error) {
+                             if (who != recipient)
+                                 return;
+                             disconnect(*onSuccess);
+                             disconnect(*onFailure);
+                             emit chatFailed("Could not get " + recipient + "'s keys: " + error);
+                         });
+
+    getPublicKeys(recipient);
+}
+
+/*
+ * Runs PQXDH against the fetched bundle and sends the initial message
+ */
+void ClientService::sendInitialMessage(const QString &recipient, const QJsonObject &keys)
+{
+    Q3Crypto::PQXDHInitialMessage message;
+    try {
+        Q3Crypto::otherClientPublicKeys targetsKeys(keys);   // parse the fetched bundle
+
+        Q3Crypto::EVP_PKEY_X25519_ptr EK_A = Q3Crypto::generateX25519Key();
+        Q3Crypto::SecretData<32> SK;
+        message = targetsKeys.generateInitialMessage(this->keys->getIdentityKey(), EK_A, "Initiate Chat", SK);
+        EK_A.reset();   // spec 3.3: delete the ephemeral private key once SK exists
+        this->handshakeKeys[recipient] = std::move(SK);
+
+    } catch (const std::exception &e) {
+        emit chatFailed(QString("Key Verification Failed") + e.what());
+        return;
+    }
+
     QNetworkRequest request(QUrl("http://127.0.0.1:8080/user/events"));
     request.setTransferTimeout(RequestTimeoutMs);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    /// GGG fetch key packet from server
-    Q3Crypto::otherClientPublicKeys targetsKeys;
-    Q3Crypto::EVP_PKEY_X25519_ptr EK_A = Q3Crypto::generateX25519Key();
-    Q3Crypto::SecretData<32> SK;
-    targetsKeys.generateInitialMessage(this->keys->getIdentityKey(),EK_A, "Initiate Chat", SK);
-
 
     QJsonObject data;
     data["authToken"] = authToken;
     data["recipient"] = recipient;
     data["sender"] = currentUsername;
     data["eventType"] = "start_chat";
-    data["data"] = "";
+    data["data"] = Q3Crypto::initialMessageToJson(message);
     data["timestamp"] = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
 
     QByteArray jsonData = QJsonDocument(data).toJson(QJsonDocument::Compact);
     QNetworkReply *reply = networkManager.post(request, jsonData);
-    connect(reply, &QNetworkReply::finished, this, [this,reply,recipient](){
+    connect(reply, &QNetworkReply::finished, this, [this, reply, recipient]() {
         int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         QString response = QString::fromUtf8(reply->readAll());
 
-        if(statusCode == 200 || statusCode == 201){
+        if (statusCode == 200 || statusCode == 201) {
             // remember the recipient locally once the homeserver accepts the chat
-            if (database && !database->addContact(recipient)){
+            if (database && !database->addContact(recipient)) {
                 qWarning() << "Failed to store contact:" << database->lastError();
             }
             emit chatStarted();
-        } else{
+        } else {
+            this->handshakeKeys.erase(recipient);   // Bob never got the message, so drop SK
             emit chatFailed(response.isEmpty() ? "Failed to start chat" : response);
         }
         reply->deleteLater();
